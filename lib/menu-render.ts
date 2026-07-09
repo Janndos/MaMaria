@@ -17,10 +17,12 @@ const BRAND_TEAL = "#00818C";
 const INK = "#1E2A2B";
 const BORDER = "#c9d2d2";
 const HAIRLINE = "#d9dede";
-// "DejaVu Sans" is listed early because it is the font we guarantee on the server
-// (installed via nixpacks.toml / present in most Linux images). "Segoe UI" wins on
-// the developer's Windows machine; both cover the Romanian diacritics ă â î ș ț.
-const FONT = "'Segoe UI','DejaVu Sans','Liberation Sans','Helvetica Neue','Arial',sans-serif";
+// All text uses the font we BUNDLE with the app (public/fonts/NotoSans-*.ttf) so
+// rendering never depends on system fonts — the cause of blank text on Railway.
+// "Noto Sans" covers the Romanian diacritics ă â î ș ț; the generic keyword is a
+// last-resort fallback only.
+const FONT = "'Noto Sans',sans-serif";
+const FONT_FAMILY = "Noto Sans";
 
 // Layout constants (design units; rasterized at 2× for crispness).
 const W = 1000;
@@ -211,49 +213,47 @@ export function buildMenuSvg(meta: MenuMeta, groups: Group[]): { svg: string; wi
   return { svg, width: W, height };
 }
 
-/** Locate usable font files so text renders even in a bare container where no
- *  system fonts are installed (the cause of "empty menu image" on Railway). We
- *  probe an override env var, a repo-bundled folder, and the standard DejaVu path
- *  created by `fonts-dejavu-core` (see nixpacks.toml). Missing paths are ignored. */
-function discoverFontFiles(): string[] {
-  const candidates = [
-    process.env.MENU_FONT_PATH,                                   // explicit override (file or dir)
-    path.join(process.cwd(), "assets", "fonts"),                  // optional repo-bundled fonts (dir)
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",            // installed via nixpacks.toml
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-    "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+/** Locate the bundled Noto Sans font files that ship with the app. Rendering uses
+ *  these exclusively so it never depends on system fonts (the cause of blank text
+ *  on Railway). An optional MENU_FONT_DIR override and an assets/fonts fallback are
+ *  probed too. Returns the files found and whether the bundle is present. */
+export function resolveMenuFonts(): { files: string[]; found: boolean } {
+  const dirs = [
+    process.env.MENU_FONT_DIR,                       // explicit override (dir)
+    path.join(process.cwd(), "public", "fonts"),     // bundled with the app (primary)
+    path.join(process.cwd(), "assets", "fonts"),     // alternate bundle location
   ].filter(Boolean) as string[];
 
   const files: string[] = [];
-  for (const c of candidates) {
+  for (const dir of dirs) {
     try {
-      const st = fs.statSync(c);
-      if (st.isDirectory()) {
-        for (const f of fs.readdirSync(c)) if (/\.(ttf|otf)$/i.test(f)) files.push(path.join(c, f));
-      } else if (/\.(ttf|otf)$/i.test(c)) {
-        files.push(c);
+      for (const f of fs.readdirSync(dir)) {
+        if (/\.(ttf|otf|ttc)$/i.test(f)) files.push(path.join(dir, f));
       }
-    } catch { /* path not present — skip */ }
+    } catch { /* directory not present — skip */ }
   }
-  return files;
+  return { files, found: files.length > 0 };
 }
 
-/** Rasterize the SVG to a PNG buffer (2× for crisp text/lines). */
-export function svgToPng(svg: string, designWidth: number): Buffer {
-  const fontFiles = discoverFontFiles();
+/** Rasterize the SVG to a PNG buffer (2× for crisp text/lines). Uses the bundled
+ *  Noto Sans; falls back to system fonts with a loud warning only if the bundle is
+ *  missing, so an image is never silently produced with unrenderable text. */
+export function svgToPng(svg: string, designWidth: number, fonts = resolveMenuFonts()): Buffer {
+  if (!fonts.found) {
+    console.warn(
+      "[menu-render] WARNING: bundled fonts not found (expected public/fonts/NotoSans-Regular.ttf & NotoSans-Bold.ttf). " +
+        "Text may render blank. Falling back to system fonts.",
+    );
+  }
   const resvg = new Resvg(svg, {
     background: "white",
     fitTo: { mode: "width", value: designWidth * 2 },
     font: {
-      // Load whatever the OS has, PLUS any font we found explicitly. Explicit
-      // files guarantee glyphs even when system-font scanning finds nothing.
-      loadSystemFonts: true,
-      fontFiles: fontFiles.length ? fontFiles : undefined,
-      // When a requested family is missing, fall back to a font we ship/install
-      // rather than to nothing (which renders blank text).
-      defaultFontFamily: "DejaVu Sans",
-      sansSerifFamily: "DejaVu Sans",
+      // When the bundle is present, load ONLY it (deterministic, no system dep).
+      loadSystemFonts: !fonts.found,
+      fontFiles: fonts.found ? fonts.files : undefined,
+      defaultFontFamily: FONT_FAMILY,
+      sansSerifFamily: FONT_FAMILY,
     },
   });
   return Buffer.from(resvg.render().asPng());
@@ -271,11 +271,26 @@ export async function pngToPdf(png: Buffer): Promise<Buffer> {
   return Buffer.from(await doc.save());
 }
 
-/** End-to-end: parsed items + meta → { png, pdf }. */
-export async function generateMenuAssets(items: ParsedItem[], meta: MenuMeta): Promise<{ png: Buffer; pdf: Buffer; width: number; height: number }> {
+export type MenuAssets = {
+  png: Buffer; pdf: Buffer; width: number; height: number;
+  svgLength: number; fontsFound: boolean; fontFiles: string[];
+  /** True if the rendered template contains its expected header text. */
+  containsExpectedText: boolean;
+};
+
+/** End-to-end: parsed items + meta → PNG + PDF plus render diagnostics. */
+export async function generateMenuAssets(items: ParsedItem[], meta: MenuMeta): Promise<MenuAssets> {
   const groups = groupItems(items);
   const { svg, width, height } = buildMenuSvg(meta, groups);
-  const png = svgToPng(svg, width);
+  const fonts = resolveMenuFonts();
+  const png = svgToPng(svg, width, fonts);
   const pdf = await pngToPdf(png);
-  return { png, pdf, width, height };
+  const containsExpectedText = svg.includes("MENIU") && svg.includes("Denumire");
+  return {
+    png, pdf, width, height,
+    svgLength: svg.length,
+    fontsFound: fonts.found,
+    fontFiles: fonts.files,
+    containsExpectedText,
+  };
 }

@@ -70,6 +70,41 @@ export async function POST(req: NextRequest) {
       return jsonError(500, "Nu am putut genera imaginea meniului.");
     }
 
+    // Render diagnostics — logged and surfaced to the admin UI.
+    Object.assign(debug, {
+      weekday: parsed.meta.weekday,
+      date: parsed.meta.date,
+      svgLength: assets.svgLength,
+      fontsFound: assets.fontsFound,
+    });
+    console.log("[menu/generate] render result:", JSON.stringify({
+      file: file.name,
+      weekday: parsed.meta.weekday,
+      date: parsed.meta.date,
+      categories: parsed.debug.categoryCount,
+      items: parsed.items.length,
+      svgLength: assets.svgLength,
+      fontsFound: assets.fontsFound,
+      fontFiles: assets.fontFiles,
+    }));
+
+    // Guard: the rendered template must contain its header text. If it doesn't,
+    // something is badly wrong with generation — don't store or post it.
+    if (!assets.containsExpectedText) {
+      console.error("[menu/generate] rendered SVG missing expected header text (MENIU/Denumire).");
+      return NextResponse.json(
+        { error: "Imaginea meniului a fost generată incorect (antet lipsă). Încercați din nou.", debug },
+        { status: 500 },
+      );
+    }
+    if (!assets.fontsFound) {
+      console.error("[menu/generate] bundled fonts missing — refusing to post a menu with unrenderable text.");
+      return NextResponse.json(
+        { error: "Fonturile pentru generarea imaginii lipsesc pe server (public/fonts). Contactați administratorul.", debug },
+        { status: 500 },
+      );
+    }
+
     // ---- store under public/generated ----
     ensureGeneratedDir();
     const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);

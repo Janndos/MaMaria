@@ -10,6 +10,10 @@ type ParseDebug = {
   categories: number;
   products: number;
   warnings: string[];
+  weekday?: string | null;
+  date?: string | null;
+  svgLength?: number;
+  fontsFound?: boolean;
 };
 type GenResult = {
   image: string; pdf: string; imageUrl: string; pdfUrl: string;
@@ -128,6 +132,12 @@ export function MenuGenerator() {
             <li className={debug.products === 0 ? "font-semibold text-red-600" : ""}>
               Produse: <span className="font-mono">{debug.products}</span>
             </li>
+            {debug.fontsFound !== undefined && (
+              <li className={debug.fontsFound ? "" : "font-semibold text-red-600"}>
+                Fonturi: <span className="font-mono">{debug.fontsFound ? "găsite" : "LIPSĂ"}</span>
+              </li>
+            )}
+            {debug.svgLength !== undefined && <li>SVG: <span className="font-mono">{debug.svgLength}</span></li>}
             <li className="col-span-2 sm:col-span-3">
               Coloane (0-index): № {debug.columns.num}, Denumire {debug.columns.name}, Masa {debug.columns.grams}, Preț {debug.columns.price}
             </li>
