@@ -3,10 +3,19 @@ import { useRef, useState } from "react";
 import { Button, Card } from "@/components/ui";
 import { useToast } from "@/components/providers";
 
+type ParseDebug = {
+  sheet: string | null;
+  headerRow: number | null;
+  columns: { num: number; category: number; name: number; grams: number; price: number };
+  categories: number;
+  products: number;
+  warnings: string[];
+};
 type GenResult = {
   image: string; pdf: string; imageUrl: string; pdfUrl: string;
   meta: { label: string; weekday: string | null; date: string | null };
   caption: string; itemCount: number; warnings: string[];
+  debug?: ParseDebug;
   telegram?: { posted: boolean; error?: string };
 };
 
@@ -19,14 +28,15 @@ export function MenuGenerator() {
   const [result, setResult] = useState<GenResult | null>(null);
   const [posted, setPosted] = useState(false);
   const [error, setError] = useState("");
+  const [debug, setDebug] = useState<ParseDebug | null>(null);
 
   function pick(f: File | null) {
-    setFile(f); setResult(null); setPosted(false); setError("");
+    setFile(f); setResult(null); setPosted(false); setError(""); setDebug(null);
   }
 
   async function generate(post: boolean) {
     if (!file) { toast.push("Alegeți un fișier .xlsx.", "error"); return; }
-    setBusy(post ? "genpost" : "gen"); setError(""); setResult(null); setPosted(false);
+    setBusy(post ? "genpost" : "gen"); setError(""); setResult(null); setPosted(false); setDebug(null);
     const fd = new FormData();
     fd.append("file", file);
     if (post) fd.append("post", "1");
@@ -34,6 +44,7 @@ export function MenuGenerator() {
     try {
       const res = await fetch("/api/admin/menu/generate", { method: "POST", body: fd });
       const data = await res.json();
+      if (data?.debug) setDebug(data.debug as ParseDebug);
       if (!res.ok) { setError(data.error || "Generare eșuată."); toast.push(data.error || "Generare eșuată.", "error"); return; }
       setResult(data);
       toast.push(`Meniu generat (${data.itemCount} produse).`);
@@ -106,6 +117,32 @@ export function MenuGenerator() {
 
       {error && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700">{error}</p>}
 
+      {/* parse diagnostics — shown after every upload, success or failure */}
+      {debug && (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
+          <p className="font-semibold text-slate-700">Diagnostic parsare</p>
+          <ul className="mt-1 grid grid-cols-2 gap-x-4 gap-y-0.5 sm:grid-cols-3">
+            <li>Foaie: <span className="font-mono">{debug.sheet ?? "—"}</span></li>
+            <li>Rând antet: <span className="font-mono">{debug.headerRow ?? "negăsit"}</span></li>
+            <li>Categorii: <span className="font-mono">{debug.categories}</span></li>
+            <li className={debug.products === 0 ? "font-semibold text-red-600" : ""}>
+              Produse: <span className="font-mono">{debug.products}</span>
+            </li>
+            <li className="col-span-2 sm:col-span-3">
+              Coloane (0-index): № {debug.columns.num}, Denumire {debug.columns.name}, Masa {debug.columns.grams}, Preț {debug.columns.price}
+            </li>
+          </ul>
+          {debug.warnings?.length > 0 && (
+            <details className="mt-1 text-amber-800">
+              <summary className="cursor-pointer font-semibold">{debug.warnings.length} avertismente</summary>
+              <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                {debug.warnings.slice(0, 12).map((w, i) => <li key={i}>{w}</li>)}
+              </ul>
+            </details>
+          )}
+        </div>
+      )}
+
       {/* result preview */}
       {result && (
         <div className="space-y-3 rounded-xl border border-brand-100 bg-brand-50/40 p-4">
@@ -133,10 +170,15 @@ export function MenuGenerator() {
           <img src={result.imageUrl} alt="Previzualizare meniu generat"
             className="mx-auto max-h-[520px] w-auto rounded-lg border border-brand-100 shadow-sm" />
 
-          {!posted && (
+          {!posted && result.itemCount > 0 && (
             <Button small onClick={postToTelegram} disabled={working}>
               {busy === "post" ? "Se postează…" : "Postează pe Telegram"}
             </Button>
+          )}
+          {result.itemCount === 0 && (
+            <p className="text-sm font-medium text-red-700">
+              Meniul nu conține produse — postarea pe Telegram este dezactivată.
+            </p>
           )}
         </div>
       )}

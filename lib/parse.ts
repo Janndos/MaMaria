@@ -8,7 +8,22 @@ export type ParsedItem = {
   priceMdl: number | null;
   warnings: string[];
 };
-export type ParseResult = { items: ParsedItem[]; errors: string[] };
+
+/** Debug-safe parsing diagnostics — surfaced in the API response and server logs
+ *  so an "empty menu" upload can be diagnosed without guessing. */
+export type ParseDebug = {
+  sheetName: string | null;
+  /** 1-based spreadsheet row number of the detected header, or null if not found. */
+  headerRow: number | null;
+  /** 0-based column indexes of the detected fields (-1 = not found). */
+  columns: { num: number; category: number; name: number; grams: number; price: number };
+  categoryCount: number;
+  productCount: number;
+};
+
+export type ParseResult = { items: ParsedItem[]; errors: string[]; debug: ParseDebug };
+
+const EMPTY_COLUMNS = { num: -1, category: -1, name: -1, grams: -1, price: -1 };
 
 /** Weekday + date extracted from the top of the sheet, for the menu header. */
 export type MenuMeta = { weekday: string | null; date: string | null; label: string };
@@ -51,16 +66,25 @@ function parseNumber(v: unknown): number | null {
 }
 
 /** Parse rows (array of arrays) into structured menu items. */
-export function parseRows(rows: unknown[][]): ParseResult {
+export function parseRows(rows: unknown[][], sheetName: string | null = null): ParseResult {
   const errors: string[] = [];
-  if (!rows.length) return { items: [], errors: ["Fișierul este gol."] };
+  const mkDebug = (headerRow: number | null, columns = { ...EMPTY_COLUMNS }, categoryCount = 0, productCount = 0): ParseDebug =>
+    ({ sheetName, headerRow, columns, categoryCount, productCount });
 
-  // Locate the header row within the first 10 rows.
+  if (!rows.length) return { items: [], errors: ["Fișierul este gol."], debug: mkDebug(null) };
+
+  // Locate the header row within the first 15 rows. We deliberately anchor on
+  // "Denumire" (the product-name column): a row is only accepted as the header
+  // once that column is present, which prevents title/category rows that happen
+  // to contain fuzzy words like "fel" from being mistaken for the header.
   let headerIdx = -1;
-  let cols: { num: number; category: number; name: number; grams: number; price: number } = { num: -1, category: -1, name: -1, grams: -1, price: -1 };
-  for (let i = 0; i < Math.min(rows.length, 10); i++) {
+  let cols: typeof EMPTY_COLUMNS = { ...EMPTY_COLUMNS };
+  let fallbackIdx = -1;
+  let fallbackCols: typeof EMPTY_COLUMNS = { ...EMPTY_COLUMNS };
+
+  for (let i = 0; i < Math.min(rows.length, 15); i++) {
     const cells = (rows[i] || []).map(norm);
-    const found = { num: -1, category: -1, name: -1, grams: -1, price: -1 };
+    const found = { ...EMPTY_COLUMNS };
     cells.forEach((c, j) => {
       for (const key of Object.keys(HEADER_HINTS) as (keyof typeof HEADER_HINTS)[]) {
         if (found[key] === -1 && HEADER_HINTS[key].some((h) => c === h || (h.length > 2 && c.includes(h)))) {
@@ -68,17 +92,23 @@ export function parseRows(rows: unknown[][]): ParseResult {
         }
       }
     });
-    if (found.name !== -1 && (found.price !== -1 || found.grams !== -1)) {
-      headerIdx = i; cols = found; break;
+    const hasDenumire = cells.some((c) => c.includes("denumire"));
+    // Strong signal: an explicit "Denumire" header cell. Take it immediately.
+    if (hasDenumire && found.name !== -1) { headerIdx = i; cols = found; break; }
+    // Weak signal: name-like + a price/grams column. Remember as a fallback only.
+    if (fallbackIdx === -1 && found.name !== -1 && (found.price !== -1 || found.grams !== -1)) {
+      fallbackIdx = i; fallbackCols = found;
     }
   }
+  if (headerIdx === -1 && fallbackIdx !== -1) { headerIdx = fallbackIdx; cols = fallbackCols; }
 
   if (headerIdx === -1) {
     return {
       items: [],
       errors: [
-        "Nu am găsit rândul de antet. Fișierul trebuie să conțină coloanele: Categorie, Denumire, Gramaj, Preț.",
+        "Nu am găsit rândul de antet. Fișierul trebuie să conțină coloanele Denumire, Masa/gr și Preț.",
       ],
+      debug: mkDebug(null),
     };
   }
   if (cols.price === -1) errors.push("Coloana Preț nu a fost găsită — prețurile vor trebui completate manual.");
@@ -124,15 +154,26 @@ export function parseRows(rows: unknown[][]): ParseResult {
   }
 
   if (!items.length) errors.push("Nu am putut extrage niciun produs din fișier.");
-  return { items, errors };
+  const categoryCount = new Set(items.map((it) => it.category)).size;
+  return { items, errors, debug: mkDebug(headerIdx + 1, cols, categoryCount, items.length) };
+}
+
+/** Read the first worksheet of a workbook as a row matrix, along with its name. */
+function firstSheetRows(buf: Buffer): { rows: unknown[][]; sheetName: string | null } {
+  const wb = XLSX.read(buf, { type: "buffer" });
+  const sheetName = wb.SheetNames[0] ?? null;
+  const sheet = sheetName ? wb.Sheets[sheetName] : undefined;
+  if (!sheet) return { rows: [], sheetName };
+  const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, raw: true, defval: "" });
+  return { rows, sheetName };
 }
 
 export function parseXlsx(buf: Buffer): ParseResult {
-  const wb = XLSX.read(buf, { type: "buffer" });
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  if (!sheet) return { items: [], errors: ["Fișierul Excel nu conține nicio foaie de calcul."] };
-  const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, raw: true, defval: "" });
-  return parseRows(rows);
+  const { rows, sheetName } = firstSheetRows(buf);
+  if (!rows.length && sheetName === null) {
+    return { items: [], errors: ["Fișierul Excel nu conține nicio foaie de calcul."], debug: { sheetName: null, headerRow: null, columns: { ...EMPTY_COLUMNS }, categoryCount: 0, productCount: 0 } };
+  }
+  return parseRows(rows, sheetName);
 }
 
 /* ---------- menu header (weekday + date) ---------- */
@@ -199,11 +240,16 @@ export function extractMenuMeta(rows: unknown[][]): MenuMeta {
 
 /** Full menu parse for image/PDF generation: items + weekday/date header. */
 export function parseXlsxMenu(buf: Buffer): ParseResult & { meta: MenuMeta } {
-  const wb = XLSX.read(buf, { type: "buffer" });
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  if (!sheet) return { items: [], errors: ["Fișierul Excel nu conține nicio foaie de calcul."], meta: { weekday: null, date: null, label: "" } };
-  const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, raw: true, defval: "" });
-  return { ...parseRows(rows), meta: extractMenuMeta(rows) };
+  const { rows, sheetName } = firstSheetRows(buf);
+  if (!rows.length && sheetName === null) {
+    return {
+      items: [],
+      errors: ["Fișierul Excel nu conține nicio foaie de calcul."],
+      debug: { sheetName: null, headerRow: null, columns: { ...EMPTY_COLUMNS }, categoryCount: 0, productCount: 0 },
+      meta: { weekday: null, date: null, label: "" },
+    };
+  }
+  return { ...parseRows(rows, sheetName), meta: extractMenuMeta(rows) };
 }
 
 /** CSV parser tolerant to ; or , delimiters and quoted fields (Moldovan Excel exports use ;). */

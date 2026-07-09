@@ -29,9 +29,44 @@ const COL_NAME_R = 728;       // Denumire right edge
 const COL_GRAMS_R = 828;      // Masa/gr right edge  (price = COL_GRAMS_R..TABLE_R)
 const HEADER_H = 78;
 const ROW_H = 42;
+const NAME_LINE_H = 24;             // line height when a product name wraps
+const NAME_X = COL_NUM_R + 12;      // left edge of the Denumire text
+const NAME_MAX_W = COL_NAME_R - NAME_X - 10; // usable width for the name column
 
-function esc(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+/** Escape for SVG text — accepts anything and never throws on null/undefined. */
+function esc(s: unknown): string {
+  return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+/** Word-wrap a product name to fit the Denumire column, at most `maxLines`.
+ *  Width is estimated from the font size (no font metrics available in SVG). */
+function wrapName(name: unknown, fontSize: number, maxLines = 2): string[] {
+  const clean = String(name ?? "").replace(/\s+/g, " ").trim();
+  if (!clean) return [""];
+  const maxChars = Math.max(8, Math.floor(NAME_MAX_W / (fontSize * 0.55)));
+  const words = clean.split(" ");
+  const lines: string[] = [];
+  let cur = "";
+  let truncated = false;
+  for (const w of words) {
+    const trial = cur ? `${cur} ${w}` : w;
+    if (trial.length <= maxChars || !cur) {
+      cur = trial;
+    } else if (lines.length < maxLines - 1) {
+      lines.push(cur);
+      cur = w;
+    } else {
+      truncated = true; // ran out of lines — remaining words are dropped
+      break;
+    }
+  }
+  if (cur) lines.push(cur);
+  if (truncated && lines.length) {
+    let last = lines[lines.length - 1];
+    while (last.length > 1 && last.length + 1 > maxChars) last = last.slice(0, -1);
+    lines[lines.length - 1] = `${last.replace(/[\s.]+$/, "")}…`;
+  }
+  return lines.length ? lines : [""];
 }
 
 type Group = { category: string; items: ParsedItem[] };
@@ -67,10 +102,10 @@ function readLogoDataUri(): string | null {
 }
 
 function fmtPrice(p: number | null): string {
-  return p === null ? "" : p.toFixed(2).replace(".", ",");
+  return typeof p === "number" && isFinite(p) ? p.toFixed(2).replace(".", ",") : "";
 }
 function fmtGrams(g: number | null): string {
-  return g === null ? "" : String(Math.round(g));
+  return typeof g === "number" && isFinite(g) ? String(Math.round(g)) : "";
 }
 
 /** Build the menu SVG and its pixel dimensions. */
@@ -87,16 +122,21 @@ export function buildMenuSvg(meta: MenuMeta, groups: Group[]): { svg: string; wi
   const tableTop = line2Y + 34;
 
   // --- build render rows (category header + items + trailing spacer) ---
-  type RRow = { kind: "cat" | "item" | "spacer"; item?: ParsedItem; category?: string };
+  // Each row carries its own height so long, wrapped product names get extra space.
+  type RRow = { kind: "cat" | "item" | "spacer"; item?: ParsedItem; category?: string; nameLines?: string[]; height: number };
   const rrows: RRow[] = [];
   groups.forEach((g) => {
-    rrows.push({ kind: "cat", category: g.category });
-    g.items.forEach((it) => rrows.push({ kind: "item", item: it }));
-    rrows.push({ kind: "spacer" });
+    rrows.push({ kind: "cat", category: g.category, height: ROW_H });
+    g.items.forEach((it) => {
+      const nameLines = wrapName(it.name, 20);
+      const height = Math.max(ROW_H, nameLines.length * NAME_LINE_H + 16);
+      rrows.push({ kind: "item", item: it, nameLines, height });
+    });
+    rrows.push({ kind: "spacer", height: ROW_H });
   });
 
   const headerBottom = tableTop + HEADER_H;
-  const bodyH = rrows.length * ROW_H;
+  const bodyH = rrows.reduce((sum, r) => sum + r.height, 0);
   const tableBottom = headerBottom + bodyH;
   const height = Math.round(tableBottom + 44);
 
@@ -142,17 +182,25 @@ export function buildMenuSvg(meta: MenuMeta, groups: Group[]): { svg: string; wi
   // --- body rows ---
   let y = headerBottom;
   for (const r of rrows) {
-    const baseline = y + ROW_H / 2 + 7;
+    const midBaseline = y + r.height / 2 + 7; // vertical centre for single-line cells
     if (r.kind === "cat") {
-      parts.push(`<text x="${COL_NUM_R + 12}" y="${baseline}" font-family="${FONT}" font-size="21" font-weight="700" fill="${INK}">${esc(r.category!)}</text>`);
+      parts.push(`<text x="${NAME_X}" y="${midBaseline}" font-family="${FONT}" font-size="21" font-weight="700" fill="${INK}">${esc(r.category ?? "")}</text>`);
     } else if (r.kind === "item" && r.item) {
       const it = r.item;
-      if (it.num !== null) parts.push(`<text x="${(TABLE_L + COL_NUM_R) / 2}" y="${baseline}" text-anchor="middle" font-family="${FONT}" font-size="20" fill="${INK}">${esc(String(Math.round(it.num)))}</text>`);
-      parts.push(`<text x="${COL_NUM_R + 12}" y="${baseline}" font-family="${FONT}" font-size="20" fill="${INK}">${esc(it.name)}</text>`);
-      if (it.grams !== null) parts.push(`<text x="${midGrams}" y="${baseline}" text-anchor="middle" font-family="${FONT}" font-size="20" fill="${INK}">${esc(fmtGrams(it.grams))}</text>`);
-      if (it.priceMdl !== null) parts.push(`<text x="${TABLE_R - 14}" y="${baseline}" text-anchor="end" font-family="${FONT}" font-size="20" fill="${INK}">${esc(fmtPrice(it.priceMdl))}</text>`);
+      if (it.num !== null && it.num !== undefined)
+        parts.push(`<text x="${(TABLE_L + COL_NUM_R) / 2}" y="${midBaseline}" text-anchor="middle" font-family="${FONT}" font-size="20" fill="${INK}">${esc(String(Math.round(it.num)))}</text>`);
+      // product name — one or more wrapped lines, vertically centred
+      const lines = r.nameLines && r.nameLines.length ? r.nameLines : [String(it.name ?? "")];
+      const firstY = y + r.height / 2 - ((lines.length - 1) * NAME_LINE_H) / 2 + 7;
+      lines.forEach((ln, li) => {
+        parts.push(`<text x="${NAME_X}" y="${firstY + li * NAME_LINE_H}" font-family="${FONT}" font-size="20" fill="${INK}">${esc(ln)}</text>`);
+      });
+      if (it.grams !== null && it.grams !== undefined)
+        parts.push(`<text x="${midGrams}" y="${midBaseline}" text-anchor="middle" font-family="${FONT}" font-size="20" fill="${INK}">${esc(fmtGrams(it.grams))}</text>`);
+      if (it.priceMdl !== null && it.priceMdl !== undefined)
+        parts.push(`<text x="${TABLE_R - 14}" y="${midBaseline}" text-anchor="end" font-family="${FONT}" font-size="20" fill="${INK}">${esc(fmtPrice(it.priceMdl))}</text>`);
     }
-    y += ROW_H;
+    y += r.height;
     parts.push(`<line x1="${TABLE_L}" y1="${y}" x2="${TABLE_R}" y2="${y}" stroke="${BORDER}" stroke-width="1"/>`);
   }
 

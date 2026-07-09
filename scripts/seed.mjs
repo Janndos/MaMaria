@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
+import { seedStableDefaults } from "./stable-defaults.mjs";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const dataDir = path.join(root, "data");
@@ -82,29 +83,10 @@ if (!menu) {
   console.log(`Meniul pentru ${today} există deja — nu a fost modificat.`);
 }
 
-/* Stable everyday items — "Bucate la comandă" (from BUCATE LA COMANDA MM.pdf).
-   Managed manually from the admin panel afterwards; seeded once, idempotently. */
-const STABLE = [
-  ["GĂINĂ MARINATĂ COAPTĂ LA CUPTOR", null, "buc", 99],
-  ["IEPURE CU LEGUME ȘI MIRODENII LA CUPTOR", null, "kg", 350],
-  ["BĂTUTE DE PORC SAU PUI", null, "kg", 200],
-  ["PÂRJOALE DE CASĂ DIN CARNE DE PORC ȘI VITĂ", null, "kg", 200],
-  ["MICI COPȚI DIN AMESTEC DE VITĂ ȘI PORC", null, "kg", 200],
-  ["CÂRNĂCIORI DIN AMESTEC DE VITĂ ȘI PORC", null, "kg", 180],
-  ["LEBERKASE", null, "kg", 250],
-  ["PIEPT DE PUI LA CUPTOR CU CAȘCAVAL DORBLUE", null, "kg", 200],
-  ["BABA NEAGRĂ", null, "kg", 150],
-];
-const stableCount = db.prepare("SELECT COUNT(*) c FROM stable_items").get().c;
-if (stableCount === 0) {
-  const insStable = db.prepare(
-    "INSERT INTO stable_items (category, name, grams, unit, price_mdl, sort_order) VALUES ('Bucate la comandă',?,?,?,?,?)"
-  );
-  STABLE.forEach(([name, grams, unit, price], i) => insStable.run(name, grams, unit, price, i + 1));
-  console.log(`Produse permanente adăugate (${STABLE.length}).`);
-} else {
-  console.log(`Produse permanente există deja (${stableCount}) — nu au fost modificate.`);
-}
+/* Stable everyday items — "Bucate la comandă" (shared defaults, idempotent). */
+const stable = seedStableDefaults(db);
+if (stable.inserted) console.log(`Produse permanente adăugate (${stable.inserted}).`);
+else console.log(`Produse permanente există deja (${stable.existing}) — nu au fost modificate.`);
 
 /* News */
 const newsCount = db.prepare("SELECT COUNT(*) c FROM news_posts").get().c;

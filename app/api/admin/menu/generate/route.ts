@@ -36,8 +36,29 @@ export async function POST(req: NextRequest) {
       console.error("Menu xlsx parse failed:", e);
       return jsonError(400, "Fișierul Excel nu a putut fi citit. Verificați formatul (.xlsx).");
     }
+
+    // Debug-safe parsing diagnostics — logged on the server AND returned to the
+    // admin UI so an "empty menu" upload can be diagnosed at a glance.
+    const debug = {
+      sheet: parsed.debug.sheetName,
+      headerRow: parsed.debug.headerRow,
+      columns: parsed.debug.columns,
+      categories: parsed.debug.categoryCount,
+      products: parsed.debug.productCount,
+      warnings: parsed.errors,
+    };
+    console.log("[menu/generate] parse result:", JSON.stringify({ file: file.name, ...debug }));
+
+    // Never render or post an empty menu — fail loudly instead.
     if (!parsed.items.length) {
-      return jsonError(400, parsed.errors[0] || "Nu am găsit niciun produs în fișier.");
+      return NextResponse.json(
+        {
+          error:
+            "Nu s-a găsit niciun produs în acest fișier Excel. Verificați formatul fișierului (foaie, antet Denumire, coloane Masa/gr și Preț).",
+          debug,
+        },
+        { status: 400 },
+      );
     }
 
     // ---- render assets ----
@@ -79,6 +100,7 @@ export async function POST(req: NextRequest) {
       caption,
       itemCount: parsed.items.length,
       warnings: parsed.errors,
+      debug,
       telegram,
     });
   });
