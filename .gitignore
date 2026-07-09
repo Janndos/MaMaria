@@ -20,8 +20,9 @@ data/
 *.sqlite3
 
 # generated / uploaded runtime assets
+# NOTE: keep this scoped to public/generated — a bare "generated/" also matches
+# source dirs like app/api/generated and would silently exclude them from git.
 public/generated/
-generated/
 uploads/
 tmp/
 temp/

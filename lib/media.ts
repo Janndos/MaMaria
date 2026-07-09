@@ -1,9 +1,10 @@
 import fs from "fs";
 import path from "path";
 
-/** Generated menu assets live under public/generated so they are downloadable /
- *  previewable at /generated/<file>. (This app runs as a long-lived Node server,
- *  so writing into public/ at runtime is served correctly.) */
+/** Generated menu assets are written here at runtime. NOTE: Next's production
+ *  server only serves `public/` files that existed at build time, so these are
+ *  NOT reachable at /generated/<file> in production — they are streamed instead
+ *  through the /api/generated/<file> route (which reads from this dir on disk). */
 export const GENERATED_DIR = path.join(process.cwd(), "public", "generated");
 
 export function ensureGeneratedDir() {
