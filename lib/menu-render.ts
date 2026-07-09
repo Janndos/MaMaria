@@ -17,7 +17,10 @@ const BRAND_TEAL = "#00818C";
 const INK = "#1E2A2B";
 const BORDER = "#c9d2d2";
 const HAIRLINE = "#d9dede";
-const FONT = "'Segoe UI','Helvetica Neue','DejaVu Sans','Arial',sans-serif";
+// "DejaVu Sans" is listed early because it is the font we guarantee on the server
+// (installed via nixpacks.toml / present in most Linux images). "Segoe UI" wins on
+// the developer's Windows machine; both cover the Romanian diacritics ă â î ș ț.
+const FONT = "'Segoe UI','DejaVu Sans','Liberation Sans','Helvetica Neue','Arial',sans-serif";
 
 // Layout constants (design units; rasterized at 2× for crispness).
 const W = 1000;
@@ -208,12 +211,50 @@ export function buildMenuSvg(meta: MenuMeta, groups: Group[]): { svg: string; wi
   return { svg, width: W, height };
 }
 
+/** Locate usable font files so text renders even in a bare container where no
+ *  system fonts are installed (the cause of "empty menu image" on Railway). We
+ *  probe an override env var, a repo-bundled folder, and the standard DejaVu path
+ *  created by `fonts-dejavu-core` (see nixpacks.toml). Missing paths are ignored. */
+function discoverFontFiles(): string[] {
+  const candidates = [
+    process.env.MENU_FONT_PATH,                                   // explicit override (file or dir)
+    path.join(process.cwd(), "assets", "fonts"),                  // optional repo-bundled fonts (dir)
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",            // installed via nixpacks.toml
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+  ].filter(Boolean) as string[];
+
+  const files: string[] = [];
+  for (const c of candidates) {
+    try {
+      const st = fs.statSync(c);
+      if (st.isDirectory()) {
+        for (const f of fs.readdirSync(c)) if (/\.(ttf|otf)$/i.test(f)) files.push(path.join(c, f));
+      } else if (/\.(ttf|otf)$/i.test(c)) {
+        files.push(c);
+      }
+    } catch { /* path not present — skip */ }
+  }
+  return files;
+}
+
 /** Rasterize the SVG to a PNG buffer (2× for crisp text/lines). */
 export function svgToPng(svg: string, designWidth: number): Buffer {
+  const fontFiles = discoverFontFiles();
   const resvg = new Resvg(svg, {
     background: "white",
     fitTo: { mode: "width", value: designWidth * 2 },
-    font: { loadSystemFonts: true, defaultFontFamily: "Segoe UI" },
+    font: {
+      // Load whatever the OS has, PLUS any font we found explicitly. Explicit
+      // files guarantee glyphs even when system-font scanning finds nothing.
+      loadSystemFonts: true,
+      fontFiles: fontFiles.length ? fontFiles : undefined,
+      // When a requested family is missing, fall back to a font we ship/install
+      // rather than to nothing (which renders blank text).
+      defaultFontFamily: "DejaVu Sans",
+      sansSerifFamily: "DejaVu Sans",
+    },
   });
   return Buffer.from(resvg.render().asPng());
 }

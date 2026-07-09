@@ -1,0 +1,10 @@
+# Railway builds this app with Nixpacks by default. The server-side menu image
+# renderer (@resvg/resvg-js) needs real font files to draw text — a bare Node
+# container has none, which made generated menu images come out blank (logo and
+# table lines rendered, but every letter was missing).
+#
+# Install DejaVu (full Romanian coverage: ă â î ș ț) + Liberation as a fallback,
+# and fontconfig so the fonts land in the standard /usr/share/fonts locations that
+# lib/menu-render.ts probes. These packages persist into the final runtime image.
+[phases.setup]
+aptPkgs = ["fonts-dejavu-core", "fonts-liberation", "fontconfig"]
