@@ -1,19 +1,37 @@
 import Database from "better-sqlite3";
+import type { Database as DatabaseType } from "better-sqlite3";
 import path from "path";
 import fs from "fs";
 
-// DB location is configurable so production can point it at a persistent volume
-// (e.g. DATA_DIR=/data on Railway/Fly/VPS). Defaults to ./data for local dev.
-const DATA_DIR = process.env.DATA_DIR
-  ? path.resolve(process.env.DATA_DIR)
-  : path.join(process.cwd(), "data");
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+/* ---------------------------------------------------------------------------
+ * Lazy database initialization.
+ *
+ * The connection, schema creation and migrations are performed the first time
+ * the database is actually used at RUNTIME — never at module import time.
+ * This matters because `next build` imports every route/page to collect page
+ * data; opening the SQLite file and running writes/migrations at import time
+ * caused `SQLITE_BUSY` ("database is locked") when several routes were imported
+ * concurrently. Deferring the work keeps the build from ever touching the DB.
+ * ------------------------------------------------------------------------- */
 
-const db = new Database(path.join(DATA_DIR, "mamaria.db"));
-db.pragma("journal_mode = WAL");
-db.pragma("foreign_keys = ON");
+let _db: DatabaseType | null = null;
 
-db.exec(`
+function initDb(): DatabaseType {
+  // DB location is configurable so production can point it at a persistent volume
+  // (e.g. DATA_DIR=/data on Railway/Fly/VPS). Defaults to ./data for local dev.
+  const DATA_DIR = process.env.DATA_DIR
+    ? path.resolve(process.env.DATA_DIR)
+    : path.join(process.cwd(), "data");
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+
+  const database = new Database(path.join(DATA_DIR, "mamaria.db"));
+  database.pragma("journal_mode = WAL");
+  database.pragma("foreign_keys = ON");
+  // Wait up to 5s for a competing writer instead of failing immediately with
+  // SQLITE_BUSY when the WAL file is briefly locked.
+  database.pragma("busy_timeout = 5000");
+
+  database.exec(`
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   full_name TEXT NOT NULL,
@@ -108,19 +126,41 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 `);
 
-/* ---------- lightweight migrations (existing DBs) ----------
- * CREATE TABLE IF NOT EXISTS never alters an existing table, so add any columns
- * introduced after the first release here. Each guarded so re-runs are no-ops. */
-function addColumn(table: string, column: string, decl: string) {
-  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
-  if (!cols.some((c) => c.name === column)) {
-    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${decl}`);
-  }
+  /* ---------- lightweight migrations (existing DBs) ----------
+   * CREATE TABLE IF NOT EXISTS never alters an existing table, so add any columns
+   * introduced after the first release here. Each guarded so re-runs are no-ops. */
+  const addColumn = (table: string, column: string, decl: string) => {
+    const cols = database.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+    if (!cols.some((c) => c.name === column)) {
+      database.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${decl}`);
+    }
+  };
+  addColumn("orders", "pickup_location", "TEXT");
+  addColumn("orders", "cancellation_reason", "TEXT");
+  addColumn("order_items", "source_type", "TEXT NOT NULL DEFAULT 'daily'");
+  addColumn("order_items", "unit", "TEXT");
+
+  return database;
 }
-addColumn("orders", "pickup_location", "TEXT");
-addColumn("orders", "cancellation_reason", "TEXT");
-addColumn("order_items", "source_type", "TEXT NOT NULL DEFAULT 'daily'");
-addColumn("order_items", "unit", "TEXT");
+
+/** Open (once) and return the underlying connection. Runtime-only. */
+export function getDb(): DatabaseType {
+  if (!_db) _db = initDb();
+  return _db;
+}
+
+/**
+ * Default export kept as a `db`-shaped object so existing `db.prepare(...)`,
+ * `db.exec(...)`, `db.transaction(...)` call sites work unchanged — but the real
+ * connection is opened lazily on first property access, never at import time.
+ */
+const db = new Proxy({} as DatabaseType, {
+  get(_target, prop, receiver) {
+    const real = getDb();
+    const value = Reflect.get(real as object, prop, receiver);
+    return typeof value === "function" ? value.bind(real) : value;
+  },
+});
 
 export default db;
 

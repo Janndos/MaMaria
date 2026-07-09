@@ -3,6 +3,9 @@ import db from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { handle, jsonError } from "@/lib/api";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 const STATUSES = ["pending", "confirmed", "preparing", "ready", "completed", "cancelled"];
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {

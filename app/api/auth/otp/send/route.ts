@@ -5,6 +5,9 @@ import { sendOtp, devCodeForClient } from "@/lib/otp";
 import { handle, jsonError } from "@/lib/api";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function POST(req: NextRequest) {
   return handle(async () => {
     const { phone } = await req.json();

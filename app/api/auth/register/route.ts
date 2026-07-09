@@ -6,6 +6,9 @@ import { sendOtp, devCodeForClient } from "@/lib/otp";
 import { handle, jsonError } from "@/lib/api";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function POST(req: NextRequest) {
   return handle(async () => {
     const rl = rateLimit(`register:${clientIp(req)}`, 5, 10 * 60_000);
