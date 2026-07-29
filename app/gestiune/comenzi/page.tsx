@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Badge, Button, Card, EmptyState, fmtMdl, Modal, ORDER_STATUS_RO, Spinner, Textarea } from "@/components/ui";
 import { useToast } from "@/components/providers";
 import { locationLabel } from "@/lib/locations";
+import { printReceipts, ordersForToday } from "@/lib/receipt";
 
 const STATUSES = ["pending", "confirmed", "preparing", "ready", "completed", "cancelled"] as const;
 
@@ -64,12 +65,26 @@ export default function AdminOrdersPage() {
   const soundRef = useRef(false);
   useEffect(() => { soundRef.current = soundOn; }, [soundOn]);
 
-  const load = useCallback(async () => {
-    const res = await fetch(`/api/admin/orders${filter ? `?status=${filter}` : ""}`);
-    const data = await res.json();
+  // Monotonic request token: only the newest fetch may write to state. This stops
+  // a slow in-flight response (e.g. the previous filter, or a lagging poll) from
+  // briefly painting the wrong orders before the correct ones arrive.
+  const reqSeq = useRef(0);
+
+  const load = useCallback(async (showLoading = false) => {
+    const seq = ++reqSeq.current;
+    if (showLoading) setOrders(null); // filter change → show the loading spinner immediately
+    let data: { orders?: Order[] };
+    try {
+      const res = await fetch(`/api/admin/orders${filter ? `?status=${filter}` : ""}`);
+      data = await res.json();
+    } catch {
+      if (seq === reqSeq.current && showLoading) setOrders([]);
+      return;
+    }
+    if (seq !== reqSeq.current) return; // superseded by a newer request — discard
+
     const list: Order[] = data.orders ?? [];
     const maxId = list.reduce((m, o) => Math.max(m, o.id), -1);
-
     if (maxSeenRef.current === -1) {
       // First load ever — establish the baseline, never chime for existing orders.
       maxSeenRef.current = maxId;
@@ -80,8 +95,33 @@ export default function AdminOrdersPage() {
     setOrders(list);
   }, [filter, chime]);
 
-  // Poll every 5s for new orders.
-  useEffect(() => { load(); const t = setInterval(load, 5000); return () => clearInterval(t); }, [load]);
+  // On filter change (and first mount): show the spinner and fetch fresh, then
+  // poll every 5s silently so the visible list never flashes stale rows.
+  useEffect(() => {
+    load(true);
+    const t = setInterval(() => load(false), 5000);
+    return () => clearInterval(t);
+  }, [load]);
+
+  function printOne(o: Order) {
+    if (!printReceipts([o], { title: `Comanda #${o.id}` }))
+      toast.push("Permiteți ferestrele pop-up pentru a printa.", "error");
+  }
+
+  async function printToday() {
+    let all: Order[] = [];
+    try {
+      const res = await fetch("/api/admin/orders");
+      all = (await res.json()).orders ?? [];
+    } catch {
+      toast.push("Nu am putut încărca comenzile pentru printare.", "error");
+      return;
+    }
+    const list = ordersForToday(all);
+    if (!list.length) { toast.push("Nu există comenzi de printat pentru ziua de azi.", "error"); return; }
+    if (!printReceipts(list, { title: `Comenzi ${new Date().toLocaleDateString("ro-RO")}` }))
+      toast.push("Permiteți ferestrele pop-up pentru a printa.", "error");
+  }
 
   function enableSound() {
     chime.enable();
@@ -122,13 +162,16 @@ export default function AdminOrdersPage() {
             </button>
           ))}
         </div>
-        {soundOn ? (
-          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-1.5 text-sm font-semibold text-emerald-700">
-            🔔 Sunet activ
-          </span>
-        ) : (
-          <Button small variant="outline" onClick={enableSound}>🔔 Activează sunetul pentru comenzi</Button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button small variant="outline" onClick={printToday}>🖨 Printează ziua</Button>
+          {soundOn ? (
+            <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-1.5 text-sm font-semibold text-emerald-700">
+              🔔 Sunet activ
+            </span>
+          ) : (
+            <Button small variant="outline" onClick={enableSound}>🔔 Activează sunetul pentru comenzi</Button>
+          )}
+        </div>
       </div>
 
       {orders === null ? (
@@ -152,7 +195,14 @@ export default function AdminOrdersPage() {
                     </p>
                     {o.pickup_location && <p className="text-sm font-medium text-brand-700">📍 {locationLabel(o.pickup_location)}</p>}
                   </div>
-                  <Badge tone={st.tone}>{st.label}</Badge>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => printOne(o)} title="Printează bonul comenzii"
+                      aria-label={`Printează comanda #${o.id}`}
+                      className="inline-flex items-center gap-1 rounded-full border border-brand-200 px-3 py-1 text-xs font-bold text-brand-700 transition hover:bg-brand-50 active:scale-95">
+                      🖨 Printează
+                    </button>
+                    <Badge tone={st.tone}>{st.label}</Badge>
+                  </div>
                 </div>
                 <ul className="mt-3 space-y-0.5 text-sm">
                   {o.items.map((it) => (
