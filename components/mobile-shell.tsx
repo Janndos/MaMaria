@@ -3,41 +3,134 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCart } from "./providers";
-import { Logo } from "./logo";
-import { Logo_M } from "./logo";
+import { Logo, Logo_M } from "./logo";
 
 type ShellUser = { name: string; role: string } | null;
 
-/** Phone-only customer shell: a ~430px app frame centered on larger screens,
- *  top bar with a drawer trigger on the left, cart on the right. */
-export function MobileShell({ user, children }: { user: ShellUser; children: React.ReactNode }) {
+/** Primary destinations shown in the desktop top nav (and mirrored in the mobile drawer). */
+const NAV = [
+  { href: "/menu", label: "Meniul zilei" },
+  { href: "/bucate", label: "Bucate la comandă" },
+  { href: "/noutati", label: "Noutăți" },
+];
+
+/** Responsive customer shell.
+ *  - Phone / tablet (< lg): a single app-like column with a top bar (drawer trigger
+ *    on the left, cart on the right) and a slide-in navigation drawer.
+ *  - Desktop (≥ lg): a full-width horizontal top navigation bar with the content
+ *    centered in a comfortable reading column.
+ *  The page content ({children}) is rendered exactly once and shared by both. */
+export function AppShell({ user, children }: { user: ShellUser; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
-  // Close the drawer on navigation.
+  // Close the mobile drawer on navigation.
   useEffect(() => { setOpen(false); }, [pathname]);
 
   return (
-    <div className="min-h-dvh bg-brand-900/5 sm:py-6">
-      <div className="relative mx-auto flex min-h-dvh w-full max-w-[430px] flex-col bg-canvas shadow-none sm:min-h-[calc(100dvh-3rem)] sm:rounded-[2rem] sm:shadow-2xl sm:ring-1 sm:ring-black/5 overflow-hidden">
-        <TopBar user={user} onMenu={() => setOpen(true)} />
-        <main className="flex-1 px-4 pb-20 pt-4">{children}</main>
-        <footer className="border-t border-brand-100 bg-white px-4 py-4 text-center text-xs text-slate-400">
-          © Ma&rsquo;Maria Cafe &amp; Catering 
-        </footer>
-        <Drawer open={open} onClose={() => setOpen(false)} user={user} />
-      </div>
+    <div className="flex min-h-dvh flex-col bg-brand-900/5">
+      {/* Chrome: desktop nav (lg+) and mobile top bar (below lg) */}
+      <DesktopNav user={user} />
+      <MobileTopBar user={user} onMenu={() => setOpen(true)} />
+
+      <main className="mx-auto w-full max-w-[480px] flex-1 px-4 pb-16 pt-5 lg:max-w-4xl lg:px-8 lg:pb-20 lg:pt-10">
+        {children}
+      </main>
+
+      <footer className="border-t border-brand-100 bg-white px-4 py-5 text-center text-xs text-slate-400">
+        © Ma&rsquo;Maria Cafe &amp; Catering
+      </footer>
+
+      <Drawer open={open} onClose={() => setOpen(false)} user={user} />
     </div>
   );
 }
 
-function TopBar({ user, onMenu }: { user: ShellUser; onMenu: () => void }) {
+/** Back-compat alias: the customer layout historically imported `MobileShell`. */
+export const MobileShell = AppShell;
+
+/* ------------------------------- desktop nav ------------------------------ */
+
+function DesktopNav({ user }: { user: ShellUser }) {
+  const cart = useCart();
+  const pathname = usePathname();
+  const router = useRouter();
+
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/");
+    router.refresh();
+  }
+
+  const links = [
+    ...NAV,
+    ...(user ? [{ href: "/orders", label: "Comenzile mele" }] : []),
+    ...(user?.role === "admin" ? [{ href: "/gestiune", label: "Admin" }] : []),
+  ];
+
+  return (
+    <header className="sticky top-0 z-30 hidden border-b border-brand-100 bg-white/90 backdrop-blur lg:block">
+      <div className="mx-auto flex max-w-6xl items-center gap-4 px-8 py-3">
+        <Link href="/" aria-label="Ma'Maria — pagina principală" className="shrink-0">
+          <Logo className="h-11" />
+        </Link>
+
+        <nav className="ml-6 flex items-center gap-1">
+          {links.map((l) => {
+            const on = pathname === l.href || pathname.startsWith(l.href + "/");
+            return (
+              <Link key={l.href} href={l.href} aria-current={on ? "page" : undefined}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                  on ? "bg-brand-500 text-white shadow-sm" : "text-brand-700 hover:bg-brand-50"
+                }`}>
+                {l.label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="ml-auto flex items-center gap-2">
+          {user ? (
+            <>
+              <Link href="/account"
+                className="flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold text-brand-700 transition hover:bg-brand-50">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-500 text-sm font-black text-white">
+                  {user.name.trim().charAt(0).toUpperCase()}
+                </span>
+                <span className="max-w-[10rem] truncate">{user.name.split(" ")[0]}</span>
+              </Link>
+              <button onClick={logout}
+                className="rounded-full px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50">
+                Ieșire
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/login"
+                className="rounded-full px-4 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-50">
+                Intră în cont
+              </Link>
+              <Link href="/register"
+                className="rounded-full bg-brand-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-brand-600">
+                Înregistrează-te
+              </Link>
+            </>
+          )}
+          <CartButton count={cart.count} />
+        </div>
+      </div>
+    </header>
+  );
+}
+
+/* ------------------------------- mobile bar ------------------------------- */
+
+function MobileTopBar({ user: _user, onMenu }: { user: ShellUser; onMenu: () => void }) {
   const cart = useCart();
   return (
-    <header className="sticky top-0 z-30 flex items-center gap-2 border-b border-brand-100 bg-white/90 px-3 py-2.5 backdrop-blur">
+    <header className="sticky top-0 z-30 flex items-center gap-2 border-b border-brand-100 bg-white/90 px-3 py-2.5 backdrop-blur lg:hidden">
       <button onClick={onMenu} aria-label="Deschide meniul de navigare"
         className="group flex h-10 w-10 items-center justify-center rounded-full bg-brand-50 text-brand-700 transition hover:bg-brand-100 active:scale-95">
-        {/* curved-arrow / hamburger hybrid */}
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
           <path d="M4 7h16" className="transition-transform group-hover:-translate-x-0.5" />
           <path d="M4 12h10" />
@@ -48,21 +141,29 @@ function TopBar({ user, onMenu }: { user: ShellUser; onMenu: () => void }) {
       <Link href="/" className="mx-auto" aria-label="Ma'Maria — pagina principală">
         <Logo_M className="h-10" />
       </Link>
-      <Link href="/checkout" aria-label="Coșul meu"
-        className="relative flex h-10 w-10 items-center justify-center rounded-full bg-brand-500 text-white transition hover:bg-brand-600 active:scale-95">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M6 7h12l-1.2 12.1a2 2 0 0 1-2 1.9H9.2a2 2 0 0 1-2-1.9L6 7Z" />
-          <path d="M9 7V5a3 3 0 0 1 6 0v2" />
-        </svg>
-        {cart.count > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-gold-500 px-1 text-[11px] font-bold text-white">
-            {cart.count}
-          </span>
-        )}
-      </Link>
+      <CartButton count={cart.count} />
     </header>
   );
 }
+
+function CartButton({ count }: { count: number }) {
+  return (
+    <Link href="/checkout" aria-label="Coșul meu"
+      className="relative flex h-10 w-10 items-center justify-center rounded-full bg-brand-500 text-white transition hover:bg-brand-600 active:scale-95">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 7h12l-1.2 12.1a2 2 0 0 1-2 1.9H9.2a2 2 0 0 1-2-1.9L6 7Z" />
+        <path d="M9 7V5a3 3 0 0 1 6 0v2" />
+      </svg>
+      {count > 0 && (
+        <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-gold-500 px-1 text-[11px] font-bold text-white">
+          {count}
+        </span>
+      )}
+    </Link>
+  );
+}
+
+/* --------------------------------- drawer --------------------------------- */
 
 function Drawer({ open, onClose, user }: { open: boolean; onClose: () => void; user: ShellUser }) {
   const router = useRouter();
@@ -86,16 +187,13 @@ function Drawer({ open, onClose, user }: { open: boolean; onClose: () => void; u
   const item = "flex items-center gap-3 rounded-xl px-4 py-3 text-[15px] font-semibold text-ink transition hover:bg-brand-50 active:scale-[0.98]";
 
   return (
-    // Fixed to the VIEWPORT (not the page): the drawer is always exactly one
-    // screen tall, so the nav scrolls internally and "Ieșire" is always reachable
-    // even on long pages. Centered to match the 430px app frame on desktop.
-    <div className={`fixed inset-0 z-40 ${open ? "" : "pointer-events-none"}`} aria-hidden={!open}>
-      {/* dimmed + blurred backdrop */}
+    // Fixed to the VIEWPORT so the drawer is always exactly one screen tall and the
+    // nav scrolls internally. Only used below lg (the desktop nav replaces it).
+    <div className={`fixed inset-0 z-40 lg:hidden ${open ? "" : "pointer-events-none"}`} aria-hidden={!open}>
       <div onClick={onClose}
         className={`absolute inset-0 bg-ink/40 backdrop-blur-[2px] transition-opacity duration-300 ${open ? "opacity-100" : "opacity-0"}`} />
-      <div className="pointer-events-none absolute inset-0 mx-auto max-w-[430px]">
       <aside role="dialog" aria-label="Meniu de navigare"
-        className={`pointer-events-auto absolute inset-y-0 left-0 flex h-full w-[82%] max-w-[320px] flex-col bg-white shadow-2xl transition-transform duration-300 ease-out ${open ? "translate-x-0" : "-translate-x-full"}`}>
+        className={`absolute inset-y-0 left-0 flex h-full w-[82%] max-w-[320px] flex-col bg-white shadow-2xl transition-transform duration-300 ease-out ${open ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="flex shrink-0 items-center justify-between border-b border-brand-100 px-5 py-4">
           <div>
             <Logo_M className="h-9" />
@@ -136,7 +234,6 @@ function Drawer({ open, onClose, user }: { open: boolean; onClose: () => void; u
           </div>
         )}
       </aside>
-      </div>
     </div>
   );
 }

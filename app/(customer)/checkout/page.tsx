@@ -74,7 +74,7 @@ export default function CheckoutPage() {
 
   if (cart.lines.length === 0) {
     return (
-      <div>
+      <div className="mx-auto max-w-2xl">
         <h1 className="mb-4 font-display text-2xl font-black text-brand-800">Coșul tău</h1>
         <EmptyState
           title="Coșul este gol"
@@ -86,7 +86,7 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-2xl space-y-5">
       <h1 className="font-display text-2xl font-black text-brand-800">Finalizează comanda</h1>
 
       <Card className="divide-y divide-brand-100">

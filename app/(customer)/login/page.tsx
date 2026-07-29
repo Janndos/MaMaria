@@ -39,7 +39,7 @@ function LoginInner() {
   }
 
   return (
-    <div>
+    <div className="mx-auto w-full max-w-md lg:py-6">
       <div className="mb-5 flex justify-center"><Logo className="h-24" /></div>
       <Card className="p-6 sm:p-8">
         <h1 className="font-display text-2xl font-black text-brand-800">Intră în cont</h1>
