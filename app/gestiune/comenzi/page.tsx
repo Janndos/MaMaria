@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge, Button, Card, EmptyState, fmtMdl, Modal, ORDER_STATUS_RO, Spinner, Textarea } from "@/components/ui";
 import { useToast } from "@/components/providers";
 import { locationLabel } from "@/lib/locations";
@@ -49,7 +49,9 @@ function useOrderChime() {
       osc.stop(t0 + 0.3);
     });
   }, []);
-  return { enable, play };
+  // Stable object identity: `enable`/`play` are stable, so consumers that depend
+  // on `chime` (e.g. the load callback + polling effect) don't re-run every render.
+  return useMemo(() => ({ enable, play }), [enable, play]);
 }
 
 export default function AdminOrdersPage() {
