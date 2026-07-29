@@ -159,14 +159,6 @@ Only verified customers can place orders.
 
 ---
 
-## Pickup Locations
-
-Customers can choose one of the supported pickup locations during checkout.
-
-The app is currently configured for the Ma’Maria / DRÄXLMAIER pickup workflow, including multiple pickup points.
-
----
-
 ## News Section
 
 The app includes a news section for announcements, updates, and menu-related posts.
