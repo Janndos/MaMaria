@@ -1,40 +1,6 @@
-import Link from "next/link";
-import { getStableItems } from "@/lib/db";
-import { currentUser } from "@/lib/auth";
-import { MenuBoard } from "@/components/menu-board";
-import { MenuTabs } from "@/components/menu-tabs";
-import { EmptyState } from "@/components/ui";
+import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
-export default async function BucatePage() {
-  const user = await currentUser();
-  const stableItems = getStableItems(true);
-  const orderHref = user ? "/order" : "/login?next=/order";
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="font-display text-xl font-black text-brand-800">Bucate la comandă</h1>
-        <Link href={orderHref}
-          className="rounded-full bg-gold-500 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-gold-600 active:scale-95">
-          Comandă acum
-        </Link>
-      </div>
-
-      <MenuTabs active="bucate" />
-
-      {stableItems.length ? (
-        <MenuBoard source="stable" title="Produse disponibile zilnic" subtitle="Bucate la comandă" items={stableItems as any} interactive={false} />
-      ) : (
-        <EmptyState title="Nu există produse disponibile momentan"
-          hint="Reveniți în curând — lista de bucate la comandă va apărea aici." />
-      )}
-
-      <div className="space-y-1 text-center text-xs text-slate-400">
-        <p>Comanda se face cu <span className="font-semibold text-slate-500">24 de ore înainte</span> de data necesară.</p>
-        <p>Comenzile se execută numai în zilele lucrătoare (luni–vineri).</p>
-      </div>
-    </div>
-  );
+// "Bucate la comandă" is now part of the unified ordering page ("Comandă acum").
+export default function BucateRedirect() {
+  redirect("/order");
 }

@@ -15,6 +15,7 @@ function todayStr(): string {
 
 type Order = {
   id: number; status: string; total_mdl: number; pickup_time: string;
+  pickup_date: string | null;
   pickup_location: string | null; comment: string | null; cancellation_reason: string | null;
   created_at: string; full_name: string; phone: string;
   items: { id: number; name: string; grams: number; unit: string | null; price_mdl: number; qty: number; source_type?: string }[];
@@ -114,30 +115,25 @@ export default function AdminOrdersPage() {
   }, [load]);
 
   function printOne(o: Order) {
-    if (!printReceipts([o], { title: `Comanda #${o.id}` }))
+    if (!printReceipts([o], { title: `Comanda #${o.id}`, layout: "single" }))
       toast.push("Permiteți ferestrele pop-up pentru a printa.", "error");
   }
 
-  // Print every (non-cancelled) order placed on `printDate` (local day). The local
-  // day is converted to a UTC range so the server filter matches stored timestamps.
+  // Print every (non-cancelled) order to be fulfilled on `printDate`.
   async function printDay() {
-    const [y, m, d] = printDate.split("-").map(Number);
-    if (!y || !m || !d) { toast.push("Alegeți o dată validă.", "error"); return; }
-    const start = new Date(y, m - 1, d, 0, 0, 0);
-    const end = new Date(y, m - 1, d + 1, 0, 0, 0);
-    const toUtc = (x: Date) => x.toISOString().slice(0, 19).replace("T", " ");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(printDate)) { toast.push("Alegeți o dată validă.", "error"); return; }
     let all: Order[] = [];
     try {
-      const res = await fetch(`/api/admin/orders?from=${encodeURIComponent(toUtc(start))}&to=${encodeURIComponent(toUtc(end))}`);
+      const res = await fetch(`/api/admin/orders?pickupDate=${encodeURIComponent(printDate)}`);
       all = (await res.json()).orders ?? [];
     } catch {
       toast.push("Nu am putut încărca comenzile pentru printare.", "error");
       return;
     }
     const list = preparePrintList(all);
-    const label = start.toLocaleDateString("ro-RO", { day: "numeric", month: "long", year: "numeric" });
+    const label = new Date(`${printDate}T12:00:00`).toLocaleDateString("ro-RO", { day: "numeric", month: "long", year: "numeric" });
     if (!list.length) { toast.push(`Nu există comenzi de printat pentru ${label}.`, "error"); return; }
-    if (!printReceipts(list, { title: `Comenzi ${label}` }))
+    if (!printReceipts(list, { title: `Comenzi ${label}`, layout: "quad" }))
       toast.push("Permiteți ferestrele pop-up pentru a printa.", "error");
   }
 
@@ -182,9 +178,9 @@ export default function AdminOrdersPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1.5 rounded-full border border-brand-200 py-1 pl-3 pr-1">
-            <input type="date" value={printDate} max={todayStr()}
+            <input type="date" value={printDate}
               onChange={(e) => setPrintDate(e.target.value)}
-              aria-label="Data comenzilor de printat"
+              aria-label="Ziua comenzilor de printat"
               className="bg-transparent text-sm font-semibold text-brand-700 outline-none" />
             <Button small variant="outline" onClick={printDay}>🖨 Printează ziua</Button>
           </div>
@@ -217,6 +213,11 @@ export default function AdminOrdersPage() {
                     <p className="text-sm text-slate-500">
                       {new Date(o.created_at + "Z").toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" })} · ridicare {o.pickup_time}
                     </p>
+                    {o.pickup_date && (
+                      <p className="text-sm font-semibold text-gold-700">
+                        📅 Pentru {new Date(`${o.pickup_date}T12:00:00`).toLocaleDateString("ro-RO", { weekday: "short", day: "numeric", month: "long" })}
+                      </p>
+                    )}
                     {o.pickup_location && <p className="text-sm font-medium text-brand-700">📍 {locationLabel(o.pickup_location)}</p>}
                   </div>
                   <div className="flex items-center gap-2">

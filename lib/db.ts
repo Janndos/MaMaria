@@ -81,6 +81,7 @@ CREATE TABLE IF NOT EXISTS orders (
     CHECK (status IN ('pending','confirmed','preparing','ready','completed','cancelled')),
   total_mdl REAL NOT NULL,
   pickup_time TEXT NOT NULL,
+  pickup_date TEXT,
   pickup_location TEXT,
   comment TEXT,
   cancellation_reason TEXT,
@@ -138,6 +139,7 @@ CREATE TABLE IF NOT EXISTS settings (
   };
   addColumn("orders", "pickup_location", "TEXT");
   addColumn("orders", "cancellation_reason", "TEXT");
+  addColumn("orders", "pickup_date", "TEXT");
   addColumn("order_items", "source_type", "TEXT NOT NULL DEFAULT 'daily'");
   addColumn("order_items", "unit", "TEXT");
   addColumn("stable_items", "min_qty", "INTEGER NOT NULL DEFAULT 1");
@@ -185,7 +187,7 @@ export type StableItem = {
 };
 export type Order = {
   id: number; user_id: number; status: string; total_mdl: number;
-  pickup_time: string; pickup_location: string | null; comment: string | null;
+  pickup_time: string; pickup_date: string | null; pickup_location: string | null; comment: string | null;
   cancellation_reason: string | null; created_at: string;
 };
 export type NewsPost = {

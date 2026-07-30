@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS orders (
     CHECK (status IN ('pending','confirmed','preparing','ready','completed','cancelled')),
   total_mdl REAL NOT NULL,
   pickup_time TEXT NOT NULL,
+  pickup_date TEXT,
   pickup_location TEXT,
   comment TEXT,
   cancellation_reason TEXT,

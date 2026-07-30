@@ -14,15 +14,14 @@ export async function GET(req: NextRequest) {
 
     const sp = req.nextUrl.searchParams;
     const status = sp.get("status");
-    // Optional created_at range (UTC "YYYY-MM-DD HH:MM:SS"), used by day printing.
-    const from = sp.get("from");
-    const to = sp.get("to");
+    // Optional fulfillment-day filter (YYYY-MM-DD) — used by day printing. Falls
+    // back to the created date for legacy orders that predate pickup_date.
+    const pickupDate = sp.get("pickupDate");
 
     const where: string[] = [];
     const args: unknown[] = [];
     if (status) { where.push("o.status = ?"); args.push(status); }
-    if (from) { where.push("o.created_at >= ?"); args.push(from); }
-    if (to) { where.push("o.created_at < ?"); args.push(to); }
+    if (pickupDate) { where.push("COALESCE(o.pickup_date, date(o.created_at)) = ?"); args.push(pickupDate); }
 
     const sql = `
       SELECT o.*, u.full_name, u.phone

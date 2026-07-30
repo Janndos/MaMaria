@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { MenuBoard, ApiMenuItem } from "@/components/menu-board";
+import { MenuTabs } from "@/components/menu-tabs";
 import { EmptyState, Spinner, fmtMdl } from "@/components/ui";
 import { useCart, useToast } from "@/components/providers";
 
@@ -12,6 +13,7 @@ type MenuResp = {
   cutoff: string;
   ordersEnabled: boolean;
   cutoffPassed: boolean;
+  workingDay: boolean;
 };
 
 function roDate(date: string) {
@@ -28,8 +30,9 @@ export default function OrderPage() {
   useEffect(() => {
     fetch("/api/menu/today").then((r) => r.json()).then((d: MenuResp) => {
       setData(d);
-      // If there is no published daily menu, open on the stable catalogue.
-      if (!d.menu && d.stableItems.length) setTab("bucate");
+      // Open on the catalogue when today's menu can't be ordered right now.
+      const dailyOpen = !!d.menu && !d.cutoffPassed && d.workingDay !== false;
+      if (!dailyOpen && d.stableItems.length) setTab("bucate");
     });
   }, []);
 
@@ -44,6 +47,7 @@ export default function OrderPage() {
 
   if (!data) return <Spinner label="Se încarcă meniul..." />;
 
+  // Global kill-switch blocks everything.
   if (!data.ordersEnabled) {
     return (
       <div className="flex min-h-[60dvh] flex-col items-center justify-center gap-4 text-center">
@@ -58,17 +62,13 @@ export default function OrderPage() {
   }
 
   const hasStable = data.stableItems.length > 0;
-
-  if (data.cutoffPassed) {
-    return (
-      <div className="space-y-4">
-        <h1 className="font-display text-xl font-black text-brand-800">Alege bucatele</h1>
-        <EmptyState title="Comenzile pentru azi s-au închis"
-          hint={`Ora limită a fost ${data.cutoff}. Meniul de mâine apare dimineața — te așteptăm!`}
-          action={<Link href="/menu" className="rounded-full bg-brand-500 px-5 py-2.5 text-sm font-bold text-white hover:bg-brand-600">Vezi meniul de azi</Link>} />
-      </div>
-    );
-  }
+  // The daily menu is same-day only, so it closes after the cutoff / on weekends.
+  const dailyOpen = !!data.menu && !data.cutoffPassed && data.workingDay;
+  const dailyClosedMsg = !data.workingDay
+    ? "Meniul zilei se comandă doar în zilele lucrătoare (luni–vineri)."
+    : data.cutoffPassed
+      ? `Comenzile din meniul zilei pentru azi s-au închis (ora limită ${data.cutoff}).`
+      : "";
 
   if (!data.menu && !hasStable) {
     return <EmptyState title="Meniul de azi nu este publicat încă"
@@ -77,12 +77,16 @@ export default function OrderPage() {
 
   return (
     <div className="space-y-4">
+      <MenuTabs active="comanda" />
+
       <div>
-        <h1 className="font-display text-xl font-black text-brand-800">Alege bucatele</h1>
-        <p className="text-sm text-slate-500">Comenzile de azi se primesc până la ora {data.cutoff}.</p>
+        <h1 className="font-display text-xl font-black text-brand-800">Comandă acum</h1>
+        <p className="text-sm text-slate-500">
+          Meniul zilei se comandă pentru azi (până la ora {data.cutoff}). „Bucate la comandă" se pot programa pentru o zi lucrătoare viitoare.
+        </p>
       </div>
 
-      {/* Tabs: daily menu vs. stable "Bucate la comandă" — one shared cart. */}
+      {/* Sub-tabs: daily menu vs. "Bucate la comandă" — one shared cart. */}
       <div className="flex rounded-full bg-brand-50 p-1 text-sm font-semibold">
         <button onClick={() => setTab("zilei")}
           className={`flex-1 rounded-full px-4 py-2 transition ${tab === "zilei" ? "bg-brand-500 text-white shadow-sm" : "text-brand-700"}`}>
@@ -96,14 +100,22 @@ export default function OrderPage() {
 
       {tab === "zilei" ? (
         data.menu ? (
-          <MenuBoard source="daily" title={data.menu.title || "Meniul zilei"} subtitle={roDate(data.menu.date)} items={data.items} interactive />
+          <div className="space-y-3">
+            {!dailyOpen && (
+              <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+                {dailyClosedMsg} Poți comanda din „Bucate la comandă" pentru o zi viitoare.
+              </p>
+            )}
+            <MenuBoard source="daily" title={data.menu.title || "Meniul zilei"} subtitle={roDate(data.menu.date)}
+              items={data.items} interactive={dailyOpen} />
+          </div>
         ) : (
           <EmptyState title="Meniul zilei nu este publicat încă"
             hint="Poți comanda din secțiunea Bucate la comandă între timp." />
         )
       ) : (
         hasStable ? (
-          <MenuBoard source="stable" title="Produse disponibile zilnic" subtitle="Bucate la comandă" items={data.stableItems} interactive />
+          <MenuBoard source="stable" title="Bucate la comandă" subtitle="Se pot programa în avans" items={data.stableItems} interactive />
         ) : (
           <EmptyState title="Nu există bucate la comandă momentan" />
         )

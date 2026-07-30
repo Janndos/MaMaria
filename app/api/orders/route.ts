@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import db, { getMenuByDate, todayISO, getSetting, getStableItemById, MenuItem, StableItem } from "@/lib/db";
+import db, { getMenuByDate, getSetting, getStableItemById, MenuItem, StableItem } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { handle, jsonError } from "@/lib/api";
 import { findLocation } from "@/lib/locations";
-import { isWorkingDay, WORKING_DAYS_NOTICE } from "@/lib/schedule";
+import { todayISO, nowHHMM, validatePickupDate } from "@/lib/schedule";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     const user = await requireUser();
     if (!user.phone_verified) return jsonError(403, "Confirmați numărul de telefon înainte de a comanda.");
 
-    const { items, pickupTime, pickupLocation, comment } = await req.json();
+    const { items, pickupTime, pickupLocation, pickupDate, comment } = await req.json();
     if (!Array.isArray(items) || items.length === 0)
       return jsonError(400, "Coșul este gol.");
     if (!pickupTime || !/^\d{2}:\d{2}$/.test(String(pickupTime)))
@@ -39,18 +39,22 @@ export async function POST(req: NextRequest) {
     if (getSetting("orders_enabled", "true") !== "true")
       return jsonError(403, "Momentan nu preluăm comenzi. Te rugăm să revii mai târziu.");
 
-    // Orders are only fulfilled on working days (Mon–Fri).
-    if (!isWorkingDay()) return jsonError(400, WORKING_DAYS_NOTICE);
+    const today = todayISO();
+    const hasDaily = items.some((l: any) => (l.source ?? "daily") === "daily");
+    // Daily-menu items are same-day only; Bucate-only carts may pick a future
+    // working day. Default to today when no date is supplied.
+    const pDate = pickupDate ? String(pickupDate) : today;
+    if (hasDaily && pDate !== today)
+      return jsonError(400, "Produsele din meniul zilei se pot comanda doar pentru astăzi.");
+    const dateErr = validatePickupDate(pDate);
+    if (dateErr) return jsonError(400, dateErr);
 
-    const cutoff = getSetting("order_cutoff", "10:30");
-    const now = new Date();
-    const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-    if (hhmm > cutoff)
+    // The same-day cutoff only restricts orders placed FOR today.
+    if (pDate === today && nowHHMM() > getSetting("order_cutoff", "10:30"))
       return jsonError(400, "Comenzile pentru azi s-au închis.");
 
     // Only load / require the daily menu if the cart actually contains daily items.
-    const hasDaily = items.some((l: any) => (l.source ?? "daily") === "daily");
-    const menu = hasDaily ? getMenuByDate(todayISO()) : null;
+    const menu = hasDaily ? getMenuByDate(today) : null;
     if (hasDaily && (!menu || !menu.published))
       return jsonError(400, "Meniul de azi nu este publicat încă.");
 
@@ -81,8 +85,8 @@ export async function POST(req: NextRequest) {
 
     const tx = db.transaction(() => {
       const orderId = Number(db.prepare(
-        "INSERT INTO orders (user_id, status, total_mdl, pickup_time, pickup_location, comment) VALUES (?,?,?,?,?,?)"
-      ).run(user.id, "pending", total, String(pickupTime), location.id, comment ? String(comment).slice(0, 500) : null).lastInsertRowid);
+        "INSERT INTO orders (user_id, status, total_mdl, pickup_time, pickup_date, pickup_location, comment) VALUES (?,?,?,?,?,?,?)"
+      ).run(user.id, "pending", total, String(pickupTime), pDate, location.id, comment ? String(comment).slice(0, 500) : null).lastInsertRowid);
       const ins = db.prepare(
         "INSERT INTO order_items (order_id, menu_item_id, source_type, name, grams, unit, price_mdl, qty) VALUES (?,?,?,?,?,?,?,?)"
       );

@@ -1,10 +1,18 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useCart, useToast } from "@/components/providers";
 import { Button, Card, EmptyState, Field, fmtMdl, Textarea, TimeSelect } from "@/components/ui";
 import { PICKUP_LOCATIONS } from "@/lib/locations";
+import { orderableDates, todayISO, ADVANCE_DAYS } from "@/lib/schedule";
+
+/** "Astăzi · luni 28 iulie" / "Marți 29 iulie" for a YYYY-MM-DD option. */
+function dayLabel(iso: string, today: string) {
+  const s = new Date(`${iso}T12:00:00`).toLocaleDateString("ro-RO", { weekday: "long", day: "numeric", month: "long" });
+  const cap = s.charAt(0).toUpperCase() + s.slice(1);
+  return iso === today ? `Astăzi · ${s}` : cap;
+}
 
 /** Portion qualifier for a cart line: "250 g" or "/buc". */
 function portion(l: { grams: number | null; unit?: string | null }) {
@@ -19,43 +27,69 @@ export default function CheckoutPage() {
   const router = useRouter();
   const [pickupTime, setPickupTime] = useState("");
   const [pickupLocation, setPickupLocation] = useState<string>("");
+  const [pickupDate, setPickupDate] = useState("");
   const [comment, setComment] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [cutoff, setCutoff] = useState("10:30");
-  // Live ordering availability — so if the admin closes orders (or the cutoff
-  // passes) while the client is on this page, we block submission and explain.
-  const [closed, setClosed] = useState<null | string>(null);
+  // Live ordering availability (server is source of truth for the kill-switch,
+  // today's working-day status and the same-day cutoff).
+  const [avail, setAvail] = useState<{ ordersEnabled: boolean; cutoffPassed: boolean; workingDay: boolean; cutoff: string } | null>(null);
+
+  // A Bucate-only cart can be scheduled for a future working day; any daily-menu
+  // item forces the order to today.
+  const bucateOnly = cart.lines.length > 0 && cart.lines.every((l) => l.source === "stable");
+  const today = todayISO();
+
+  // Working days the customer may pick (today dropped once the cutoff has passed).
+  const dateOptions = useMemo(() => {
+    let days = orderableDates();
+    if (avail?.cutoffPassed) days = days.filter((d) => d !== today);
+    return days;
+  }, [avail, today]);
+
+  // Keep the selected advance date valid as the option set changes.
+  useEffect(() => {
+    if (!bucateOnly) return;
+    if (!pickupDate || !dateOptions.includes(pickupDate)) setPickupDate(dateOptions[0] ?? "");
+  }, [bucateOnly, dateOptions, pickupDate]);
 
   async function refreshAvailability() {
     try {
       const d = await (await fetch("/api/menu/today")).json();
-      setCutoff(d.cutoff ?? "10:30");
-      if (!d.ordersEnabled) setClosed("Momentan nu preluăm comenzi. Coșul rămâne salvat pentru mai târziu.");
-      else if (d.workingDay === false) setClosed("Comenzile se preiau doar în zilele lucrătoare (luni–vineri).");
-      else if (d.cutoffPassed) setClosed(`Comenzile pentru azi s-au închis (ora limită ${d.cutoff ?? ""}).`);
-      else setClosed(null);
+      setAvail({ ordersEnabled: !!d.ordersEnabled, cutoffPassed: !!d.cutoffPassed, workingDay: d.workingDay !== false, cutoff: d.cutoff ?? "10:30" });
     } catch { /* keep last known state */ }
   }
 
   useEffect(() => {
     refreshAvailability();
-    // Re-check periodically so a mid-session closure is reflected without reload.
     const t = setInterval(refreshAvailability, 15000);
     return () => clearInterval(t);
   }, []);
+
+  const cutoff = avail?.cutoff ?? "10:30";
+  // Blocked-ordering reason (if any), depending on cart contents.
+  let closed: string | null = null;
+  if (avail && !avail.ordersEnabled) closed = "Momentan nu preluăm comenzi. Coșul rămâne salvat pentru mai târziu.";
+  else if (bucateOnly) {
+    if (dateOptions.length === 0) closed = "Nu există zile lucrătoare disponibile pentru comandă.";
+  } else if (avail) {
+    if (!avail.workingDay) closed = "Meniul zilei se comandă doar în zilele lucrătoare (luni–vineri).";
+    else if (avail.cutoffPassed) closed = `Comenzile pentru azi s-au închis (ora limită ${avail.cutoff}).`;
+  }
 
   async function submit() {
     setError("");
     if (closed) { setError(closed); return; }
     if (!pickupTime) { setError("Alegeți ora de ridicare."); return; }
     if (!pickupLocation) { setError("Alegeți punctul de ridicare."); return; }
+    const pDate = bucateOnly ? pickupDate : today;
+    if (bucateOnly && !pDate) { setError("Alegeți ziua comenzii."); return; }
     setLoading(true);
     const res = await fetch("/api/orders", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         items: cart.lines.map((l) => ({ id: l.itemId, source: l.source, qty: l.qty })),
-        pickupTime, pickupLocation, comment,
+        pickupTime, pickupLocation, pickupDate: pDate, comment,
       }),
     });
     const data = await res.json();
@@ -121,6 +155,23 @@ export default function CheckoutPage() {
         {closed && (
           <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">{closed}</p>
         )}
+
+        {bucateOnly ? (
+          <Field label="Ziua comenzii">
+            <select value={pickupDate} onChange={(e) => setPickupDate(e.target.value)}
+              className="w-full rounded-xl border border-brand-200 bg-white px-3 py-2.5 text-sm font-semibold text-brand-800 outline-none focus:border-brand-400">
+              {dateOptions.map((d) => <option key={d} value={d}>{dayLabel(d, today)}</option>)}
+            </select>
+            <span className="mt-1 block text-xs text-slate-500">
+              „Bucate la comandă" se comandă cu până la {ADVANCE_DAYS} zile înainte, în zilele lucrătoare (luni–vineri).
+            </span>
+          </Field>
+        ) : (
+          <p className="rounded-xl bg-brand-50 px-4 py-2.5 text-sm font-medium text-brand-700">
+            Comandă pentru <span className="font-bold">astăzi</span> ({dayLabel(today, today).replace("Astăzi · ", "")}).
+          </p>
+        )}
+
         <Field label="Ora de ridicare">
           <TimeSelect value={pickupTime} onChange={setPickupTime} minuteStep={5} />
           <span className="mt-1 block text-xs text-slate-500">Alege ora la care vii să ridici comanda.</span>

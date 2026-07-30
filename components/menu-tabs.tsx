@@ -1,11 +1,11 @@
 import Link from "next/link";
 
-/** Segmented pill nav that switches between the daily menu and the stable
- *  "Bucate la comandă" catalogue. Used on the view-only menu pages. */
-export function MenuTabs({ active }: { active: "zilei" | "bucate" }) {
+/** Segmented pill nav: view today's menu vs. go to the ordering page (which
+ *  covers both the daily menu and the "Bucate la comandă" catalogue). */
+export function MenuTabs({ active }: { active: "zilei" | "comanda" }) {
   const tabs = [
     { key: "zilei", label: "Meniul zilei", href: "/menu" },
-    { key: "bucate", label: "Bucate la comandă", href: "/bucate" },
+    { key: "comanda", label: "Comandă acum", href: "/order" },
   ] as const;
   return (
     <div className="flex rounded-full bg-brand-50 p-1 text-sm font-semibold">
