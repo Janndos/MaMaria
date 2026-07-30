@@ -5,10 +5,10 @@ import { useToast } from "@/components/providers";
 
 type StableItem = {
   id: number; category: string; name: string; grams: number | null; unit: string;
-  price_mdl: number; available: number; sort_order: number;
+  price_mdl: number; min_qty: number; available: number; sort_order: number;
 };
 
-const emptyDraft = { category: "Bucate la comandă", name: "", grams: "", unit: "buc", priceMdl: "", sortOrder: "" };
+const emptyDraft = { category: "Bucate la comandă", name: "", grams: "", unit: "buc", priceMdl: "", minQty: "", sortOrder: "" };
 
 export default function AdminStableItemsPage() {
   const toast = useToast();
@@ -75,13 +75,15 @@ export default function AdminStableItemsPage() {
 
       <Card className="p-5">
         <h3 className="font-display font-bold text-brand-800">Adaugă produs permanent</h3>
-        <div className="mt-3 grid gap-3 sm:grid-cols-6">
+        <div className="mt-3 grid gap-3 sm:grid-cols-7">
           <Input placeholder="Categorie" value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })} />
           <Input placeholder="Denumire" className="sm:col-span-2" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
           <Input placeholder="Gramaj (opț.)" inputMode="numeric" value={draft.grams} onChange={(e) => setDraft({ ...draft, grams: e.target.value })} />
           <Input placeholder="Unitate (buc/kg)" value={draft.unit} onChange={(e) => setDraft({ ...draft, unit: e.target.value })} />
           <Input placeholder="Preț MDL" inputMode="decimal" value={draft.priceMdl} onChange={(e) => setDraft({ ...draft, priceMdl: e.target.value })} />
+          <Input placeholder="Cant. min." inputMode="numeric" value={draft.minQty} onChange={(e) => setDraft({ ...draft, minQty: e.target.value })} />
         </div>
+        <p className="mt-2 text-xs text-slate-500">„Cant. min." = cantitatea minimă pe care clientul o poate comanda (implicit 1).</p>
         <div className="mt-3"><Button small onClick={addItem}>Adaugă</Button></div>
       </Card>
 
@@ -102,19 +104,20 @@ function StableRow({ item, onSave, onToggle, onDelete }: {
   const [editing, setEditing] = useState(false);
   const [d, setD] = useState({
     category: item.category, name: item.name, grams: item.grams === null ? "" : String(item.grams),
-    unit: item.unit, priceMdl: String(item.price_mdl), sortOrder: String(item.sort_order),
+    unit: item.unit, priceMdl: String(item.price_mdl), minQty: String(item.min_qty ?? 1), sortOrder: String(item.sort_order),
   });
 
   if (editing) {
     return (
-      <div className="grid gap-2 px-5 py-3 sm:grid-cols-7 sm:items-center">
+      <div className="grid gap-2 px-5 py-3 sm:grid-cols-8 sm:items-center">
         <Input value={d.category} onChange={(e) => setD({ ...d, category: e.target.value })} placeholder="Categorie" />
         <Input value={d.name} onChange={(e) => setD({ ...d, name: e.target.value })} className="sm:col-span-2" placeholder="Denumire" />
         <Input value={d.grams} inputMode="numeric" onChange={(e) => setD({ ...d, grams: e.target.value })} placeholder="g" />
         <Input value={d.unit} onChange={(e) => setD({ ...d, unit: e.target.value })} placeholder="buc/kg" />
         <Input value={d.priceMdl} inputMode="decimal" onChange={(e) => setD({ ...d, priceMdl: e.target.value })} placeholder="MDL" />
+        <Input value={d.minQty} inputMode="numeric" onChange={(e) => setD({ ...d, minQty: e.target.value })} placeholder="Cant. min." />
         <div className="flex gap-2">
-          <Button small onClick={() => { onSave({ category: d.category, name: d.name, grams: d.grams, unit: d.unit, priceMdl: d.priceMdl, sortOrder: d.sortOrder }); setEditing(false); }}>Salvează</Button>
+          <Button small onClick={() => { onSave({ category: d.category, name: d.name, grams: d.grams, unit: d.unit, priceMdl: d.priceMdl, minQty: d.minQty, sortOrder: d.sortOrder }); setEditing(false); }}>Salvează</Button>
           <Button small variant="ghost" onClick={() => setEditing(false)}>Anulează</Button>
         </div>
       </div>
@@ -124,7 +127,10 @@ function StableRow({ item, onSave, onToggle, onDelete }: {
   return (
     <div className={`flex flex-wrap items-center gap-2 px-5 py-3 ${item.available ? "" : "opacity-50"}`}>
       <span className="w-40 shrink-0 text-xs font-semibold uppercase tracking-wide text-gold-600">{item.category}</span>
-      <span className="min-w-0 flex-1 font-medium">{item.name}</span>
+      <span className="min-w-0 flex-1 font-medium">
+        {item.name}
+        {item.min_qty > 1 && <span className="ml-2 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">min. {item.min_qty}</span>}
+      </span>
       <span className="text-sm text-slate-500">{portion}</span>
       <span className="w-24 text-right font-semibold tabular-nums text-brand-700">{fmtMdl(item.price_mdl)}</span>
       {!item.available && <Badge tone="gray">Indisponibil</Badge>}

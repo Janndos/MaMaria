@@ -24,10 +24,15 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       price = Number(body.priceMdl);
       if (!(price > 0)) return jsonError(400, "Prețul este invalid.");
     }
+    let minQty = item.min_qty;
+    if (body.minQty !== undefined) {
+      minQty = body.minQty === "" || body.minQty === null ? 1 : Math.max(1, Math.round(Number(body.minQty)));
+      if (!(minQty >= 1)) return jsonError(400, "Cantitatea minimă este invalidă.");
+    }
 
     db.prepare(
       `UPDATE stable_items
-       SET category = ?, name = ?, grams = ?, unit = ?, price_mdl = ?, available = ?, sort_order = ?,
+       SET category = ?, name = ?, grams = ?, unit = ?, price_mdl = ?, min_qty = ?, available = ?, sort_order = ?,
            updated_at = datetime('now')
        WHERE id = ?`
     ).run(
@@ -36,6 +41,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       grams,
       body.unit !== undefined ? String(body.unit).trim() : item.unit,
       price,
+      minQty,
       body.available !== undefined ? (body.available ? 1 : 0) : item.available,
       body.sortOrder !== undefined ? Math.round(Number(body.sortOrder)) : item.sort_order,
       id

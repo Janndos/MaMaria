@@ -41,8 +41,11 @@ function VerifyInner() {
     // Brief success confirmation before routing on.
     setDone(true);
     const next = params.get("next");
+    const home = data.role === "admin" ? "/gestiune" : data.role === "tehno" ? "/gestiune/comenzi" : "/menu";
+    let dest = next && next.startsWith("/") ? next : home;
+    if (data.role === "tehno" && dest === "/gestiune") dest = "/gestiune/comenzi";
     setTimeout(() => {
-      router.push(next && next.startsWith("/") ? next : data.role === "admin" ? "/gestiune" : "/menu");
+      router.push(dest);
       router.refresh();
     }, 850);
   }, [loading, done, phone, params, router]);

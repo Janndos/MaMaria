@@ -31,9 +31,10 @@ export default async function BucatePage() {
           hint="Reveniți în curând — lista de bucate la comandă va apărea aici." />
       )}
 
-      <p className="text-center text-xs text-slate-400">
-        Aceste produse pot fi comandate în fiecare zi, alături de meniul zilei.
-      </p>
+      <div className="space-y-1 text-center text-xs text-slate-400">
+        <p>Comanda se face cu <span className="font-semibold text-slate-500">24 de ore înainte</span> de data necesară.</p>
+        <p>Comenzile se execută numai în zilele lucrătoare (luni–vineri).</p>
+      </div>
     </div>
   );
 }

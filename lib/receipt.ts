@@ -1,12 +1,14 @@
 import { locationLabel } from "./locations";
 
 /* ============================================================================
- *  Printable kitchen receipts ("bonuri") for admin orders.
+ *  Printable kitchen checks ("bonuri") for admin orders.
  *  ----------------------------------------------------------------------------
- *  Each order renders as a compact "check" sized to roughly 1/3 of an A4 page.
- *  Receipts flow down the page with `page-break-inside: avoid`, so printing a
- *  whole day tiles ~3 orders per A4 sheet, aligned for cutting. Printing happens
- *  in a throwaway popup window so the admin app chrome never appears on paper.
+ *  Each order renders as a narrow, vertical thermal-style receipt (like a store
+ *  check) — monospace, centered header, dashed separators — so it can be cut out
+ *  and stuck on the order bag / used at the stove. Checks are a fixed narrow width
+ *  centred on the page and flow down with `page-break-inside: avoid`, so a whole
+ *  day tiles ~3 checks per A4 sheet, aligned for cutting. Printing happens in a
+ *  throwaway popup window so the admin app chrome never appears on paper.
  * ========================================================================== */
 
 export type ReceiptItem = {
@@ -25,7 +27,7 @@ function esc(s: unknown): string {
 
 function money(n: number): string {
   const v = typeof n === "number" && isFinite(n) ? n : 0;
-  return `${Number.isInteger(v) ? v : v.toFixed(2)} MDL`;
+  return v.toFixed(2);
 }
 
 function portion(it: ReceiptItem): string {
@@ -38,74 +40,82 @@ function placedAt(created_at: string): string {
   // created_at is stored UTC; render in the viewer's local (Moldova) time.
   const d = new Date(`${created_at}Z`);
   if (isNaN(d.getTime())) return "";
-  return d.toLocaleString("ro-RO", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleString("ro-RO", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
-/** One receipt block. */
-function receiptHtml(o: ReceiptOrder): string {
-  const rows = o.items.map((it) => {
+/** One narrow check block. */
+function checkHtml(o: ReceiptOrder): string {
+  const items = o.items.map((it) => {
     const p = portion(it);
-    return `<tr>
-      <td class="q">${it.qty}×</td>
-      <td class="n">${esc(it.name)}${p ? ` <span class="por">(${esc(p)})</span>` : ""}</td>
-      <td class="a">${esc(money(it.price_mdl * it.qty))}</td>
-    </tr>`;
+    return `<div class="it">
+      <div class="l1"><b>${it.qty}×</b> ${esc(it.name)}</div>
+      <div class="l2"><span>${esc(p)}</span><span>${esc(money(it.price_mdl * it.qty))}</span></div>
+    </div>`;
   }).join("");
 
-  const loc = o.pickup_location ? esc(locationLabel(o.pickup_location)) : "";
+  const loc = o.pickup_location ? String(locationLabel(o.pickup_location)) : "";
+  const [locName, locAddr] = loc ? loc.split(" · ") : ["", ""];
+  const cancelled = o.status === "cancelled";
 
-  return `<section class="receipt">
-    <div class="head">
-      <div class="brand">Ma&rsquo;Maria <span>Cafe &amp; Catering</span></div>
-      <div class="onum">Comanda&nbsp;#${o.id}</div>
-    </div>
-    <div class="meta">
-      <div><b>Client:</b> ${esc(o.full_name)}</div>
-      <div><b>Telefon:</b> ${esc(o.phone)}</div>
-      <div><b>Ridicare:</b> ${esc(o.pickup_time)}${loc ? ` · ${loc}` : ""}</div>
-      <div><b>Plasată:</b> ${esc(placedAt(o.created_at))}</div>
-    </div>
-    <table class="items"><tbody>${rows}</tbody></table>
-    <div class="total"><span>TOTAL</span><span>${esc(money(o.total_mdl))}</span></div>
-    ${o.comment ? `<div class="note">„${esc(o.comment)}”</div>` : ""}
-    <div class="cut">✂ ─────────────────────────────</div>
+  return `<section class="check">
+    <div class="brand">Ma&rsquo;Maria</div>
+    <div class="sub">CAFE &amp; CATERING</div>
+    <div class="star"></div>
+    <div class="onum">COMANDA #${o.id}${cancelled ? " — ANULATĂ" : ""}</div>
+    <div class="star"></div>
+    <div class="kv"><span>Data:</span><span>${esc(placedAt(o.created_at))}</span></div>
+    <div class="kv"><span>Client:</span><span>${esc(o.full_name)}</span></div>
+    <div class="kv"><span>Tel:</span><span>${esc(o.phone)}</span></div>
+    <div class="dash"></div>
+    <div class="pickup">RIDICARE: ${esc(o.pickup_time || "—")}</div>
+    ${locName ? `<div class="loc">${esc(locName)}</div>` : ""}
+    ${locAddr ? `<div class="loc small">${esc(locAddr)}</div>` : ""}
+    <div class="dash"></div>
+    <div class="items">${items}</div>
+    <div class="dash"></div>
+    <div class="total"><span>TOTAL</span><span>${esc(money(o.total_mdl))} MDL</span></div>
+    ${o.comment ? `<div class="dash"></div><div class="note">★ ${esc(o.comment)} ★</div>` : ""}
+    <div class="star"></div>
+    <div class="foot">mamaria.md · Mulțumim!</div>
   </section>`;
 }
 
 const PRINT_CSS = `
   @page { size: A4; margin: 8mm; }
   * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  html, body { margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', 'Noto Sans', Arial, sans-serif; color: #14201f; font-size: 12px; }
-  .receipt {
-    width: 100%; min-height: 86mm; padding: 5mm 4mm 4mm; border-bottom: 1.5px dashed #9aa;
-    page-break-inside: avoid; break-inside: avoid;
+  html, body { margin: 0; padding: 0; background: #fff; }
+  body { font-family: 'Courier New', 'Consolas', ui-monospace, monospace; color: #000; }
+  .check {
+    width: 74mm; margin: 0 auto 5mm; padding: 5mm 5mm 4mm;
+    border: 1px dashed #888; min-height: 84mm;
+    font-size: 12px; line-height: 1.35; page-break-inside: avoid; break-inside: avoid;
   }
-  .receipt:last-child { border-bottom: none; }
-  .head { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px;
-    border-bottom: 2px solid #00818C; padding-bottom: 4px; }
-  .brand { font-size: 18px; font-weight: 800; color: #00818C; line-height: 1; }
-  .brand span { display: block; font-size: 9px; font-weight: 600; letter-spacing: 2px;
-    text-transform: uppercase; color: #6b7a79; }
-  .onum { font-size: 15px; font-weight: 800; white-space: nowrap; }
-  .meta { margin-top: 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 1px 12px; font-size: 11px; }
-  .meta b { color: #55605f; font-weight: 600; }
-  .items { width: 100%; border-collapse: collapse; margin-top: 6px; }
-  .items td { padding: 2px 0; vertical-align: top; border-bottom: 1px dotted #dfe4e4; }
-  .items .q { width: 30px; font-weight: 700; white-space: nowrap; }
-  .items .n { padding-left: 4px; }
-  .items .por { color: #8a9594; }
-  .items .a { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 600; padding-left: 8px; }
-  .total { display: flex; justify-content: space-between; margin-top: 6px; padding-top: 4px;
-    border-top: 2px solid #14201f; font-size: 14px; font-weight: 800; }
-  .note { margin-top: 4px; font-style: italic; color: #55605f; font-size: 11px; }
-  .cut { margin-top: 6px; color: #9aa; font-size: 11px; letter-spacing: 1px; overflow: hidden; white-space: nowrap; }
+  .brand { text-align: center; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+  .sub { text-align: center; font-size: 10px; letter-spacing: 3px; margin-top: 1px; }
+  .onum { text-align: center; font-size: 15px; font-weight: 700; }
+  /* Full-width character rules that clip to the check width */
+  .star, .dash { overflow: hidden; white-space: nowrap; height: 0.9em; line-height: 0.9em; margin: 3px 0; }
+  .star::before { content: "************************************************************"; }
+  .dash::before { content: "------------------------------------------------------------"; color: #444; }
+  .kv { display: flex; gap: 8px; justify-content: space-between; }
+  .kv span:first-child { color: #333; white-space: nowrap; }
+  .kv span:last-child { text-align: right; word-break: break-word; }
+  .pickup { text-align: center; font-weight: 700; font-size: 13px; }
+  .loc { text-align: center; }
+  .loc.small { font-size: 10px; color: #333; }
+  .items { margin: 2px 0; }
+  .it { margin: 2px 0; }
+  .it .l1 { }
+  .it .l2 { display: flex; justify-content: space-between; color: #333; font-size: 11px; padding-left: 14px; }
+  .total { display: flex; justify-content: space-between; font-weight: 700; font-size: 14px; }
+  .note { text-align: center; font-style: italic; }
+  .foot { text-align: center; font-size: 10px; color: #333; margin-top: 2px; }
 `;
 
 function buildDoc(orders: ReceiptOrder[], title: string): string {
   return `<!doctype html><html lang="ro"><head><meta charset="utf-8">
     <title>${esc(title)}</title><style>${PRINT_CSS}</style></head>
-    <body>${orders.map(receiptHtml).join("")}</body></html>`;
+    <body>${orders.map(checkHtml).join("")}</body></html>`;
 }
 
 /**
@@ -114,7 +124,7 @@ function buildDoc(orders: ReceiptOrder[], title: string): string {
  */
 export function printReceipts(orders: ReceiptOrder[], opts?: { title?: string }): boolean {
   if (typeof window === "undefined" || !orders.length) return false;
-  const w = window.open("", "_blank", "width=820,height=1040");
+  const w = window.open("", "_blank", "width=520,height=900");
   if (!w) return false;
   w.document.open();
   w.document.write(buildDoc(orders, opts?.title ?? "Comenzi Ma'Maria"));
@@ -126,10 +136,7 @@ export function printReceipts(orders: ReceiptOrder[], opts?: { title?: string })
   return true;
 }
 
-/** Filter a list to orders created "today" (local time), oldest first — for the day batch. */
-export function ordersForToday<T extends { created_at: string; id: number; status?: string }>(orders: T[]): T[] {
-  const today = new Date().toDateString();
-  return orders
-    .filter((o) => new Date(`${o.created_at}Z`).toDateString() === today && o.status !== "cancelled")
-    .sort((a, b) => a.id - b.id);
+/** Prepare a batch for printing: drop cancelled orders and order oldest-first. */
+export function preparePrintList<T extends { id: number; status?: string }>(orders: T[]): T[] {
+  return orders.filter((o) => o.status !== "cancelled").sort((a, b) => a.id - b.id);
 }

@@ -3,6 +3,7 @@ import db, { getMenuByDate, todayISO, getSetting, getStableItemById, MenuItem, S
 import { requireUser } from "@/lib/auth";
 import { handle, jsonError } from "@/lib/api";
 import { findLocation } from "@/lib/locations";
+import { isWorkingDay, WORKING_DAYS_NOTICE } from "@/lib/schedule";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,9 @@ export async function POST(req: NextRequest) {
     if (getSetting("orders_enabled", "true") !== "true")
       return jsonError(403, "Momentan nu preluăm comenzi. Te rugăm să revii mai târziu.");
 
+    // Orders are only fulfilled on working days (Mon–Fri).
+    if (!isWorkingDay()) return jsonError(400, WORKING_DAYS_NOTICE);
+
     const cutoff = getSetting("order_cutoff", "10:30");
     const now = new Date();
     const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
@@ -62,6 +66,8 @@ export async function POST(req: NextRequest) {
         const item = getStableItemById(Number(line.id)) as StableItem | undefined;
         if (!item) return jsonError(400, "Un produs din coș nu mai există.");
         if (!item.available) return jsonError(400, `„${item.name}" nu mai este disponibil.`);
+        const min = item.min_qty ?? 1;
+        if (qty < min) return jsonError(400, `„${item.name}": cantitatea minimă este ${min}.`);
         total += item.price_mdl * qty;
         resolved.push({ source, id: item.id, name: item.name, grams: item.grams ?? 0, unit: item.unit, price: item.price_mdl, qty });
       } else {

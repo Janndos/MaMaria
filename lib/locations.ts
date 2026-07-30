@@ -3,8 +3,8 @@
 export type PickupLocation = { id: string; name: string; address: string };
 
 export const PICKUP_LOCATIONS: PickupLocation[] = [
-  { id: "draxlmaier-1", name: "DRÄXLMAIER 1", address: "Strada Industrială 4" },
-  { id: "draxlmaier-2", name: "DRÄXLMAIER 2", address: "Strada Dovator Nr. 86" },
+  { id: "draxlmaier-1", name: "DRÄXLMAIER 1", address: "Strada Dovator Nr. 86" },
+  { id: "draxlmaier-2", name: "DRÄXLMAIER 2", address: "Strada Industrială 4" },
 ];
 
 export function findLocation(id: string): PickupLocation | undefined {

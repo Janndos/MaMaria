@@ -65,6 +65,20 @@ export async function requireAdmin(): Promise<User> {
   return u;
 }
 
+/** Roles that may access the staff panel. "tehno" is a limited operator role
+ *  (daily menu, orders and users only); "admin" has full access. */
+export const STAFF_ROLES = ["admin", "tehno"] as const;
+export function isStaff(role: string): boolean {
+  return (STAFF_ROLES as readonly string[]).includes(role);
+}
+
+/** Allow either an admin or a tehno operator. */
+export async function requireStaff(): Promise<User> {
+  const u = await requireUser();
+  if (!isStaff(u.role)) throw new AuthError(403, "Acces doar pentru personal.");
+  return u;
+}
+
 export class AuthError extends Error {
   status: number;
   constructor(status: number, message: string) { super(message); this.status = status; }

@@ -14,9 +14,13 @@ const NAV = [
   { href: "/gestiune/setari", label: "Setări", icon: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" },
 ];
 
-export function AdminSidebar({ adminName }: { adminName: string }) {
+// A tehno operator only sees the daily menu, orders and users.
+const TEHNO_HREFS = ["/gestiune/meniu", "/gestiune/comenzi", "/gestiune/utilizatori"];
+
+export function AdminSidebar({ adminName, role }: { adminName: string; role: string }) {
   const pathname = usePathname();
   const router = useRouter();
+  const nav = role === "admin" ? NAV : NAV.filter((n) => TEHNO_HREFS.includes(n.href));
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -28,10 +32,12 @@ export function AdminSidebar({ adminName }: { adminName: string }) {
     <aside className="sticky top-0 flex h-dvh w-60 shrink-0 flex-col border-r border-brand-100 bg-brand-800 text-brand-100">
       <div className="border-b border-brand-700 px-5 py-5">
         <Logo className="h-12" boxed />
-        <p className="mt-2 text-[11px] font-bold uppercase tracking-widest text-gold-400">Panou admin</p>
+        <p className="mt-2 text-[11px] font-bold uppercase tracking-widest text-gold-400">
+          {role === "admin" ? "Panou admin" : "Panou tehno"}
+        </p>
       </div>
       <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-        {NAV.map((n) => {
+        {nav.map((n) => {
           const active = n.href === "/gestiune" ? pathname === "/gestiune" : pathname.startsWith(n.href);
           return (
             <Link key={n.href} href={n.href}

@@ -106,6 +106,7 @@ CREATE TABLE IF NOT EXISTS stable_items (
   grams INTEGER,
   unit TEXT NOT NULL DEFAULT 'buc',
   price_mdl REAL NOT NULL,
+  min_qty INTEGER NOT NULL DEFAULT 1,
   available INTEGER NOT NULL DEFAULT 1,
   sort_order INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -139,6 +140,7 @@ CREATE TABLE IF NOT EXISTS settings (
   addColumn("orders", "cancellation_reason", "TEXT");
   addColumn("order_items", "source_type", "TEXT NOT NULL DEFAULT 'daily'");
   addColumn("order_items", "unit", "TEXT");
+  addColumn("stable_items", "min_qty", "INTEGER NOT NULL DEFAULT 1");
 
   return database;
 }
@@ -178,7 +180,7 @@ export type MenuItem = {
 export type Menu = { id: number; date: string; title: string; published: number; created_at: string };
 export type StableItem = {
   id: number; category: string; name: string; grams: number | null; unit: string;
-  price_mdl: number; available: number; sort_order: number;
+  price_mdl: number; min_qty: number; available: number; sort_order: number;
   created_at: string; updated_at: string;
 };
 export type Order = {
@@ -198,6 +200,32 @@ export function getSetting(key: string, fallback: string): string {
 }
 export function setSetting(key: string, value: string) {
   db.prepare("INSERT INTO settings (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(key, value);
+}
+
+/* ---------- order retention ----------
+ * Orders are kept for a fixed window then removed automatically. order_items are
+ * removed via `ON DELETE CASCADE` (foreign_keys pragma is ON). */
+export const ORDER_RETENTION_DAYS = 60; // ~2 months
+
+/** Delete orders (and their items, via cascade) older than `days`. Returns count. */
+export function pruneOldOrders(days = ORDER_RETENTION_DAYS): number {
+  const info = db.prepare("DELETE FROM orders WHERE created_at < datetime('now', ?)").run(`-${days} days`);
+  return info.changes;
+}
+
+/** Run pruneOldOrders at most once per 24h (triggered opportunistically by admin
+ *  traffic, so no external cron is needed). Failures are swallowed — never block a request. */
+export function maybePruneOldOrders(days = ORDER_RETENTION_DAYS): void {
+  try {
+    const last = Number(getSetting("orders_pruned_at", "0"));
+    const now = Date.now();
+    if (Number.isFinite(last) && now - last < 24 * 60 * 60 * 1000) return;
+    const removed = pruneOldOrders(days);
+    setSetting("orders_pruned_at", String(now));
+    if (removed > 0) console.log(`[retention] pruned ${removed} order(s) older than ${days} days`);
+  } catch (e) {
+    console.error("[retention] pruneOldOrders failed:", e);
+  }
 }
 
 export function findUserByPhone(phone: string): User | undefined {

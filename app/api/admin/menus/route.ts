@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import db, { ensureCategory, getMenuByDate, getMenuItems } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requireStaff } from "@/lib/auth";
 import { handle, jsonError } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   return handle(async () => {
-    await requireAdmin();
+    await requireStaff();
     const date = req.nextUrl.searchParams.get("date");
     if (date) {
       const menu = getMenuByDate(date);
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
 /** Create/replace a menu for a date from a list of items (upload-preview publish or manual save). */
 export async function POST(req: NextRequest) {
   return handle(async () => {
-    await requireAdmin();
+    await requireStaff();
     const { date, title, items, publish } = await req.json();
     if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(String(date)))
       return jsonError(400, "Data meniului este invalidă (format AAAA-LL-ZZ).");

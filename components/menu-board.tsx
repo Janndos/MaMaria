@@ -5,7 +5,7 @@ import { Badge, fmtMdl } from "./ui";
 
 export type ApiMenuItem = {
   id: number; name: string; grams: number | null; price_mdl: number;
-  available: number; category: string | null; unit?: string | null;
+  available: number; category: string | null; unit?: string | null; min_qty?: number;
 };
 
 /** Short portion/price qualifier: "250 g", "buc", "kg" — whatever the item carries. */
@@ -53,11 +53,15 @@ export function MenuBoard({
                 const key = cartKey(source, it.id);
                 const inCart = cart.lines.find((l) => l.key === key);
                 const portion = portionLabel(it);
+                const min = Math.max(1, it.min_qty ?? 1);
+                // Decrement: drop below the minimum removes the line entirely.
+                const dec = () => cart.setQty(key, inCart!.qty - 1 < min ? 0 : inCart!.qty - 1);
                 return (
                   <li key={it.id} className={`flex items-end gap-1 py-1.5 ${off ? "opacity-45" : ""}`}>
                     <div className="min-w-0">
                       <span className="font-medium">{it.name}</span>
                       {portion && <span className="ml-2 whitespace-nowrap text-sm text-slate-500">{portion}</span>}
+                      {min > 1 && <span className="ml-2 whitespace-nowrap text-xs font-semibold text-amber-700">min. {min}</span>}
                       {off && <span className="ml-2 align-middle"><Badge tone="gray">Indisponibil</Badge></span>}
                     </div>
                     <span className="dotted-leader" aria-hidden />
@@ -66,7 +70,7 @@ export function MenuBoard({
                       inCart ? (
                         <span className="ml-2 flex items-center gap-1">
                           <button aria-label={`Scade cantitatea pentru ${it.name}`}
-                            onClick={() => cart.setQty(key, inCart.qty - 1)}
+                            onClick={dec}
                             className="h-7 w-7 rounded-full border border-brand-300 text-brand-700 hover:bg-brand-50">−</button>
                           <span className="w-5 text-center text-sm font-bold tabular-nums">{inCart.qty}</span>
                           <button aria-label={`Crește cantitatea pentru ${it.name}`}
@@ -75,7 +79,7 @@ export function MenuBoard({
                         </span>
                       ) : (
                         <button
-                          onClick={() => { cart.add({ source, itemId: it.id, name: it.name, grams: it.grams, unit: it.unit ?? null, price: it.price_mdl }); toast.push(`„${it.name}" adăugat în coș`); }}
+                          onClick={() => { cart.add({ source, itemId: it.id, name: it.name, grams: it.grams, unit: it.unit ?? null, price: it.price_mdl, minQty: min }, min); toast.push(min > 1 ? `„${it.name}" adăugat (min. ${min})` : `„${it.name}" adăugat în coș`); }}
                           className="ml-2 rounded-full bg-brand-500 px-3 py-1 text-xs font-bold text-white hover:bg-brand-600">
                           Adaugă
                         </button>

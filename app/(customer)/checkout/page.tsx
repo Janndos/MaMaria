@@ -32,6 +32,7 @@ export default function CheckoutPage() {
       const d = await (await fetch("/api/menu/today")).json();
       setCutoff(d.cutoff ?? "10:30");
       if (!d.ordersEnabled) setClosed("Momentan nu preluăm comenzi. Coșul rămâne salvat pentru mai târziu.");
+      else if (d.workingDay === false) setClosed("Comenzile se preiau doar în zilele lucrătoare (luni–vineri).");
       else if (d.cutoffPassed) setClosed(`Comenzile pentru azi s-au închis (ora limită ${d.cutoff ?? ""}).`);
       else setClosed(null);
     } catch { /* keep last known state */ }
@@ -97,10 +98,11 @@ export default function CheckoutPage() {
               <p className="text-sm text-slate-500">
                 {l.source === "stable" && <span className="mr-1 rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand-600">zilnic</span>}
                 {portion(l)} · {fmtMdl(l.price)}{portion(l) ? "/porție" : ""}
+                {(l.minQty ?? 1) > 1 && <span className="ml-1 font-semibold text-amber-700">· min. {l.minQty}</span>}
               </p>
             </div>
             <div className="flex items-center gap-1">
-              <button aria-label="Scade" onClick={() => cart.setQty(l.key, l.qty - 1)}
+              <button aria-label="Scade" onClick={() => { const min = Math.max(1, l.minQty ?? 1); cart.setQty(l.key, l.qty - 1 < min ? 0 : l.qty - 1); }}
                 className="h-8 w-8 rounded-full border border-brand-300 text-brand-700 hover:bg-brand-50">−</button>
               <span className="w-6 text-center font-bold tabular-nums">{l.qty}</span>
               <button aria-label="Crește" onClick={() => cart.setQty(l.key, l.qty + 1)}
@@ -151,6 +153,7 @@ export default function CheckoutPage() {
         </Field>
         <p className="text-xs text-slate-500">
           Plata se face la ridicare, numerar sau card. Comenzile pentru azi se primesc până la ora {cutoff}.
+          Comenzile se fac cu 24 de ore înainte și se preiau doar în zilele lucrătoare (luni–vineri).
         </p>
         {error && <p className="rounded-xl bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700">{error}</p>}
         <Button full onClick={submit} disabled={loading || !!closed}>

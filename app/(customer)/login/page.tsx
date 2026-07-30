@@ -34,7 +34,11 @@ function LoginInner() {
       return;
     }
     const next = params.get("next");
-    router.push(next && next.startsWith("/") ? next : data.role === "admin" ? "/gestiune" : "/menu");
+    // tehno can't open the panel root, so send it to an allowed section.
+    const home = data.role === "admin" ? "/gestiune" : data.role === "tehno" ? "/gestiune/comenzi" : "/menu";
+    let dest = next && next.startsWith("/") ? next : home;
+    if (data.role === "tehno" && dest === "/gestiune") dest = "/gestiune/comenzi";
+    router.push(dest);
     router.refresh();
   }
 

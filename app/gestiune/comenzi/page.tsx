@@ -3,9 +3,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge, Button, Card, EmptyState, fmtMdl, Modal, ORDER_STATUS_RO, Spinner, Textarea } from "@/components/ui";
 import { useToast } from "@/components/providers";
 import { locationLabel } from "@/lib/locations";
-import { printReceipts, ordersForToday } from "@/lib/receipt";
+import { printReceipts, preparePrintList } from "@/lib/receipt";
 
 const STATUSES = ["pending", "confirmed", "preparing", "ready", "completed", "cancelled"] as const;
+
+/** Local today as YYYY-MM-DD (for the date picker's max). */
+function todayStr(): string {
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
+}
 
 type Order = {
   id: number; status: string; total_mdl: number; pickup_time: string;
@@ -62,6 +68,8 @@ export default function AdminOrdersPage() {
   const [soundOn, setSoundOn] = useState(false);
   const [cancelling, setCancelling] = useState<Order | null>(null);
   const [cancelReason, setCancelReason] = useState("");
+  // Date whose orders the "Printează ziua" button will print (defaults to today).
+  const [printDate, setPrintDate] = useState(todayStr);
 
   const maxSeenRef = useRef<number>(-1); // highest order id ever observed
   const soundRef = useRef(false);
@@ -110,18 +118,26 @@ export default function AdminOrdersPage() {
       toast.push("Permiteți ferestrele pop-up pentru a printa.", "error");
   }
 
-  async function printToday() {
+  // Print every (non-cancelled) order placed on `printDate` (local day). The local
+  // day is converted to a UTC range so the server filter matches stored timestamps.
+  async function printDay() {
+    const [y, m, d] = printDate.split("-").map(Number);
+    if (!y || !m || !d) { toast.push("Alegeți o dată validă.", "error"); return; }
+    const start = new Date(y, m - 1, d, 0, 0, 0);
+    const end = new Date(y, m - 1, d + 1, 0, 0, 0);
+    const toUtc = (x: Date) => x.toISOString().slice(0, 19).replace("T", " ");
     let all: Order[] = [];
     try {
-      const res = await fetch("/api/admin/orders");
+      const res = await fetch(`/api/admin/orders?from=${encodeURIComponent(toUtc(start))}&to=${encodeURIComponent(toUtc(end))}`);
       all = (await res.json()).orders ?? [];
     } catch {
       toast.push("Nu am putut încărca comenzile pentru printare.", "error");
       return;
     }
-    const list = ordersForToday(all);
-    if (!list.length) { toast.push("Nu există comenzi de printat pentru ziua de azi.", "error"); return; }
-    if (!printReceipts(list, { title: `Comenzi ${new Date().toLocaleDateString("ro-RO")}` }))
+    const list = preparePrintList(all);
+    const label = start.toLocaleDateString("ro-RO", { day: "numeric", month: "long", year: "numeric" });
+    if (!list.length) { toast.push(`Nu există comenzi de printat pentru ${label}.`, "error"); return; }
+    if (!printReceipts(list, { title: `Comenzi ${label}` }))
       toast.push("Permiteți ferestrele pop-up pentru a printa.", "error");
   }
 
@@ -165,7 +181,13 @@ export default function AdminOrdersPage() {
           ))}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button small variant="outline" onClick={printToday}>🖨 Printează ziua</Button>
+          <div className="flex items-center gap-1.5 rounded-full border border-brand-200 py-1 pl-3 pr-1">
+            <input type="date" value={printDate} max={todayStr()}
+              onChange={(e) => setPrintDate(e.target.value)}
+              aria-label="Data comenzilor de printat"
+              className="bg-transparent text-sm font-semibold text-brand-700 outline-none" />
+            <Button small variant="outline" onClick={printDay}>🖨 Printează ziua</Button>
+          </div>
           {soundOn ? (
             <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-1.5 text-sm font-semibold text-emerald-700">
               🔔 Sunet activ

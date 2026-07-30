@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS stable_items (
   grams INTEGER,
   unit TEXT NOT NULL DEFAULT 'buc',
   price_mdl REAL NOT NULL,
+  min_qty INTEGER NOT NULL DEFAULT 1,
   available INTEGER NOT NULL DEFAULT 1,
   sort_order INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),

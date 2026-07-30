@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import db, { ensureCategory } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requireStaff } from "@/lib/auth";
 import { handle, jsonError } from "@/lib/api";
 
 export const runtime = "nodejs";
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   return handle(async () => {
-    await requireAdmin();
+    await requireStaff();
     const { menuId, category, name, grams, priceMdl } = await req.json();
     if (!menuId || !name || !(Number(grams) > 0) || !(Number(priceMdl) > 0))
       return jsonError(400, "Completați denumirea, gramajul și prețul.");

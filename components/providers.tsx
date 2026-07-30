@@ -12,6 +12,7 @@ export type CartLine = {
   unit?: string | null;
   price: number;
   qty: number;
+  minQty?: number;        // minimum orderable quantity (stable items); default 1
 };
 
 /** Build the composite key that keeps daily & stable items (separate tables,

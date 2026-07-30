@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { requireStaff } from "@/lib/auth";
 import { handle, jsonError } from "@/lib/api";
 
 export const runtime = "nodejs";
@@ -10,7 +10,7 @@ const STATUSES = ["pending", "confirmed", "preparing", "ready", "completed", "ca
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   return handle(async () => {
-    await requireAdmin();
+    await requireStaff();
     const { status, cancellationReason } = await req.json();
     if (!STATUSES.includes(status)) return jsonError(400, "Status invalid.");
 

@@ -33,8 +33,8 @@ const COL_NUM_R = 112;        // № column right edge
 const COL_NAME_R = 728;       // Denumire right edge
 const COL_GRAMS_R = 828;      // Masa/gr right edge  (price = COL_GRAMS_R..TABLE_R)
 const HEADER_H = 78;
-const ROW_H = 42;
-const NAME_LINE_H = 24;             // line height when a product name wraps
+const ROW_H = 46;
+const NAME_LINE_H = 27;             // line height when a product name wraps
 const NAME_X = COL_NUM_R + 12;      // left edge of the Denumire text
 const NAME_MAX_W = COL_NAME_R - NAME_X - 10; // usable width for the name column
 
@@ -167,14 +167,14 @@ export function buildMenuSvg(meta: MenuMeta, groups: Group[]): { svg: string; wi
   const midGrams = (COL_NAME_R + COL_GRAMS_R) / 2;
   const midPrice = (COL_GRAMS_R + TABLE_R) / 2;
   const hMid = tableTop + HEADER_H / 2;
-  const hLabel = (x: number, y: number, s: string, size = 20) =>
+  const hLabel = (x: number, y: number, s: string, size = 22) =>
     `<text x="${x}" y="${y}" text-anchor="middle" font-family="${FONT}" font-size="${size}" font-weight="700" fill="#ffffff">${esc(s)}</text>`;
   parts.push(hLabel((TABLE_L + COL_NUM_R) / 2, hMid + 7, "№"));
   parts.push(hLabel(midName, hMid + 7, "Denumire"));
-  parts.push(hLabel(midGrams, hMid - 4, "Masa/", 18));
-  parts.push(hLabel(midGrams, hMid + 20, "gr", 18));
-  parts.push(hLabel(midPrice, hMid - 4, "Preț porție,", 18));
-  parts.push(hLabel(midPrice, hMid + 20, "MDL", 18));
+  parts.push(hLabel(midGrams, hMid - 4, "Masa/", 20));
+  parts.push(hLabel(midGrams, hMid + 20, "gr", 20));
+  parts.push(hLabel(midPrice, hMid - 4, "Preț porție,", 20));
+  parts.push(hLabel(midPrice, hMid + 20, "MDL", 20));
 
   // --- grid lines (verticals span the body; horizontals per row) ---
   const xs = [TABLE_L, COL_NUM_R, COL_NAME_R, COL_GRAMS_R, TABLE_R];
@@ -189,21 +189,21 @@ export function buildMenuSvg(meta: MenuMeta, groups: Group[]): { svg: string; wi
   for (const r of rrows) {
     const midBaseline = y + r.height / 2 + 7; // vertical centre for single-line cells
     if (r.kind === "cat") {
-      parts.push(`<text x="${NAME_X}" y="${midBaseline}" font-family="${FONT}" font-size="21" font-weight="700" fill="${INK}">${esc(r.category ?? "")}</text>`);
+      parts.push(`<text x="${NAME_X}" y="${midBaseline}" font-family="${FONT}" font-size="23" font-weight="700" fill="${INK}">${esc(r.category ?? "")}</text>`);
     } else if (r.kind === "item" && r.item) {
       const it = r.item;
       if (it.num !== null && it.num !== undefined)
-        parts.push(`<text x="${(TABLE_L + COL_NUM_R) / 2}" y="${midBaseline}" text-anchor="middle" font-family="${FONT}" font-size="20" fill="${INK}">${esc(String(Math.round(it.num)))}</text>`);
+        parts.push(`<text x="${(TABLE_L + COL_NUM_R) / 2}" y="${midBaseline}" text-anchor="middle" font-family="${FONT}" font-size="22" fill="${INK}">${esc(String(Math.round(it.num)))}</text>`);
       // product name — one or more wrapped lines, vertically centred
       const lines = r.nameLines && r.nameLines.length ? r.nameLines : [String(it.name ?? "")];
       const firstY = y + r.height / 2 - ((lines.length - 1) * NAME_LINE_H) / 2 + 7;
       lines.forEach((ln, li) => {
-        parts.push(`<text x="${NAME_X}" y="${firstY + li * NAME_LINE_H}" font-family="${FONT}" font-size="20" fill="${INK}">${esc(ln)}</text>`);
+        parts.push(`<text x="${NAME_X}" y="${firstY + li * NAME_LINE_H}" font-family="${FONT}" font-size="22" fill="${INK}">${esc(ln)}</text>`);
       });
       if (it.grams !== null && it.grams !== undefined)
-        parts.push(`<text x="${midGrams}" y="${midBaseline}" text-anchor="middle" font-family="${FONT}" font-size="20" fill="${INK}">${esc(fmtGrams(it.grams))}</text>`);
+        parts.push(`<text x="${midGrams}" y="${midBaseline}" text-anchor="middle" font-family="${FONT}" font-size="22" fill="${INK}">${esc(fmtGrams(it.grams))}</text>`);
       if (it.priceMdl !== null && it.priceMdl !== undefined)
-        parts.push(`<text x="${TABLE_R - 14}" y="${midBaseline}" text-anchor="end" font-family="${FONT}" font-size="20" fill="${INK}">${esc(fmtPrice(it.priceMdl))}</text>`);
+        parts.push(`<text x="${TABLE_R - 14}" y="${midBaseline}" text-anchor="end" font-family="${FONT}" font-size="22" fill="${INK}">${esc(fmtPrice(it.priceMdl))}</text>`);
     }
     y += r.height;
     parts.push(`<line x1="${TABLE_L}" y1="${y}" x2="${TABLE_R}" y2="${y}" stroke="${BORDER}" stroke-width="1"/>`);

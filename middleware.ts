@@ -6,6 +6,8 @@ const secret = new TextEncoder().encode(process.env.AUTH_SECRET || "dev-secret-c
 // Any authenticated customer area.
 const CUSTOMER_PATHS = ["/order", "/checkout", "/orders", "/account"];
 const STAFF_PREFIX = "/gestiune";
+// The only sections a "tehno" operator may open (admins see everything).
+const TEHNO_ALLOWED = ["/gestiune/meniu", "/gestiune/comenzi", "/gestiune/utilizatori"];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -26,9 +28,17 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // The staff panel does not acknowledge its existence to non-staff sessions.
-  if (isStaff && payload.role !== "admin") {
-    return new NextResponse(null, { status: 404 });
+  // The staff panel does not acknowledge its existence to non-staff sessions,
+  // and a tehno operator only sees its three allowed sections.
+  if (isStaff) {
+    const role = payload.role;
+    if (role !== "admin" && role !== "tehno") {
+      return new NextResponse(null, { status: 404 });
+    }
+    if (role === "tehno") {
+      const allowed = TEHNO_ALLOWED.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+      if (!allowed) return new NextResponse(null, { status: 404 });
+    }
   }
 
   const res = NextResponse.next();
