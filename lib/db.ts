@@ -2,6 +2,19 @@ import Database from "better-sqlite3";
 import type { Database as DatabaseType } from "better-sqlite3";
 import path from "path";
 import fs from "fs";
+import { STABLE_DESCRIPTIONS } from "./bucate-defaults";
+
+/** Fill in the standard product descriptions on any stable item that has none yet
+ *  (idempotent; never overwrites an admin-edited description). Runs at init so
+ *  existing deployments get the copy automatically. */
+function backfillStableDescriptions(database: DatabaseType): void {
+  try {
+    const upd = database.prepare(
+      "UPDATE stable_items SET description = ? WHERE name = ? AND (description IS NULL OR description = '')"
+    );
+    for (const [name, desc] of Object.entries(STABLE_DESCRIPTIONS)) upd.run(desc, name);
+  } catch { /* table may not exist yet during a partial init — safe to skip */ }
+}
 
 /* ---------------------------------------------------------------------------
  * Lazy database initialization.
@@ -108,6 +121,8 @@ CREATE TABLE IF NOT EXISTS stable_items (
   unit TEXT NOT NULL DEFAULT 'buc',
   price_mdl REAL NOT NULL,
   min_qty INTEGER NOT NULL DEFAULT 1,
+  description TEXT,
+  image_url TEXT,
   available INTEGER NOT NULL DEFAULT 1,
   sort_order INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -143,6 +158,9 @@ CREATE TABLE IF NOT EXISTS settings (
   addColumn("order_items", "source_type", "TEXT NOT NULL DEFAULT 'daily'");
   addColumn("order_items", "unit", "TEXT");
   addColumn("stable_items", "min_qty", "INTEGER NOT NULL DEFAULT 1");
+  addColumn("stable_items", "description", "TEXT");
+  addColumn("stable_items", "image_url", "TEXT");
+  backfillStableDescriptions(database);
 
   return database;
 }
@@ -182,7 +200,8 @@ export type MenuItem = {
 export type Menu = { id: number; date: string; title: string; published: number; created_at: string };
 export type StableItem = {
   id: number; category: string; name: string; grams: number | null; unit: string;
-  price_mdl: number; min_qty: number; available: number; sort_order: number;
+  price_mdl: number; min_qty: number; description: string | null; image_url: string | null;
+  available: number; sort_order: number;
   created_at: string; updated_at: string;
 };
 export type Order = {

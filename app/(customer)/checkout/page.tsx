@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useCart, useToast } from "@/components/providers";
 import { Button, Card, EmptyState, Field, fmtMdl, Textarea, TimeSelect } from "@/components/ui";
 import { PICKUP_LOCATIONS } from "@/lib/locations";
-import { orderableDates, todayISO, ADVANCE_DAYS } from "@/lib/schedule";
+import { orderableDates, todayISO } from "@/lib/schedule";
 
 /** "Astăzi · luni 28 iulie" / "Marți 29 iulie" for a YYYY-MM-DD option. */
 function dayLabel(iso: string, today: string) {
@@ -157,13 +157,13 @@ export default function CheckoutPage() {
         )}
 
         {bucateOnly ? (
-          <Field label="Ziua comenzii">
+          <Field label="Când vrei să ridici comanda?">
             <select value={pickupDate} onChange={(e) => setPickupDate(e.target.value)}
               className="w-full rounded-xl border border-brand-200 bg-white px-3 py-2.5 text-sm font-semibold text-brand-800 outline-none focus:border-brand-400">
               {dateOptions.map((d) => <option key={d} value={d}>{dayLabel(d, today)}</option>)}
             </select>
             <span className="mt-1 block text-xs text-slate-500">
-              „Bucate la comandă" se comandă cu până la {ADVANCE_DAYS} zile înainte, în zilele lucrătoare (luni–vineri).
+              Se comandă cu maxim 1 săptămână înainte (zile lucrătoare).
             </span>
           </Field>
         ) : (

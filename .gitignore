@@ -20,10 +20,11 @@ data/
 *.sqlite3
 
 # generated / uploaded runtime assets
-# NOTE: keep this scoped to public/generated — a bare "generated/" also matches
-# source dirs like app/api/generated and would silently exclude them from git.
+# NOTE: keep these scoped — a bare "generated/" or "uploads/" also matches source
+# dirs like app/api/generated and app/api/uploads and would silently exclude them
+# from git. Dev uploads live under data/ (already ignored above); prod uploads
+# live on the persistent volume (DATA_DIR), never in the repo.
 public/generated/
-uploads/
 tmp/
 temp/
 

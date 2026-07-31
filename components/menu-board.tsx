@@ -6,6 +6,7 @@ import { Badge, fmtMdl } from "./ui";
 export type ApiMenuItem = {
   id: number; name: string; grams: number | null; price_mdl: number;
   available: number; category: string | null; unit?: string | null; min_qty?: number;
+  description?: string | null; image_url?: string | null;
 };
 
 /** Short portion/price qualifier: "250 g", "buc", "kg" — whatever the item carries. */

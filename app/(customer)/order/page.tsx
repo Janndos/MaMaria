@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { MenuBoard, ApiMenuItem } from "@/components/menu-board";
+import { BucateMenu } from "@/components/bucate-menu";
 import { MenuTabs } from "@/components/menu-tabs";
 import { EmptyState, Spinner, fmtMdl } from "@/components/ui";
 import { useCart, useToast } from "@/components/providers";
@@ -115,7 +116,10 @@ export default function OrderPage() {
         )
       ) : (
         hasStable ? (
-          <MenuBoard source="stable" title="Bucate la comandă" subtitle="Se pot programa în avans" items={data.stableItems} interactive />
+          <div className="space-y-3">
+            <p className="text-sm text-slate-500">Se pot programa pentru o zi lucrătoare, cu până la o săptămână înainte.</p>
+            <BucateMenu items={data.stableItems} interactive />
+          </div>
         ) : (
           <EmptyState title="Nu există bucate la comandă momentan" />
         )
