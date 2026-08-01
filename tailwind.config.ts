@@ -26,8 +26,16 @@ const config: Config = {
         canvas: "#F2F7F7",
       },
       fontFamily: {
-        display: ["Fraunces", "Georgia", "serif"],
-        sans: ["'Instrument Sans'", "system-ui", "sans-serif"],
+        // Self-hosted via next/font (see app/layout.tsx). Fraunces for headings,
+        // Inter Tight for body/labels/prices.
+        display: ["var(--font-fraunces)", "Georgia", "serif"],
+        sans: ["var(--font-inter-tight)", "system-ui", "sans-serif"],
+      },
+      // Ma'Maria type scale — 30 / 22 / 16 / 14 / 12. Headings tighten tracking;
+      // 16/14/12 map to the stock base/sm/xs so the rest of the app is untouched.
+      fontSize: {
+        display: ["30px", { lineHeight: "1.15", letterSpacing: "-0.02em" }],
+        title: ["22px", { lineHeight: "1.2", letterSpacing: "-0.02em" }],
       },
       borderRadius: { card: "1rem" },
       boxShadow: {

@@ -114,7 +114,7 @@ export default function CheckoutPage() {
         <EmptyState
           title="Coșul este gol"
           hint="Alege ceva bun din meniul de azi."
-          action={<Link href="/order" className="rounded-full bg-brand-500 px-5 py-2.5 text-sm font-bold text-white hover:bg-brand-600">Vezi meniul</Link>}
+          action={<Link href="/meniu" className="rounded-full bg-brand-500 px-5 py-2.5 text-sm font-bold text-white hover:bg-brand-600">Vezi meniul</Link>}
         />
       </div>
     );

@@ -35,7 +35,7 @@ function LoginInner() {
     }
     const next = params.get("next");
     // tehno can't open the panel root, so send it to an allowed section.
-    const home = data.role === "admin" ? "/gestiune" : data.role === "tehno" ? "/gestiune/comenzi" : "/menu";
+    const home = data.role === "admin" ? "/gestiune" : data.role === "tehno" ? "/gestiune/comenzi" : "/meniu";
     let dest = next && next.startsWith("/") ? next : home;
     if (data.role === "tehno" && dest === "/gestiune") dest = "/gestiune/comenzi";
     router.push(dest);

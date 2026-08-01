@@ -1,7 +1,12 @@
 "use client";
+import { useState } from "react";
 import { useCart, useToast, cartKey } from "./providers";
 import { fmtMdl } from "./ui";
 import type { ApiMenuItem } from "./menu-board";
+
+// Session-scoped: the card entrance staggers only the first time the grid mounts,
+// never again on tab switches / re-renders / filtering.
+let bucateEntered = false;
 
 /** Portion qualifier: "250 g", "/kg", "/buc". */
 function portionLabel(it: ApiMenuItem) {
@@ -18,10 +23,12 @@ function portionLabel(it: ApiMenuItem) {
 export function BucateMenu({ items, interactive = true }: { items: ApiMenuItem[]; interactive?: boolean }) {
   const cart = useCart();
   const toast = useToast();
+  // Stagger the entrance on first mount only.
+  const [stagger] = useState(() => { if (bucateEntered) return false; bucateEntered = true; return true; });
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {items.map((it) => {
+      {items.map((it, i) => {
         const off = !it.available;
         const key = cartKey("stable", it.id);
         const inCart = cart.lines.find((l) => l.key === key);
@@ -31,7 +38,8 @@ export function BucateMenu({ items, interactive = true }: { items: ApiMenuItem[]
 
         return (
           <article key={it.id}
-            className={`flex flex-col overflow-hidden rounded-2xl bg-white shadow-card ring-1 ring-black/5 transition ${off ? "opacity-60" : "hover:shadow-lg"}`}>
+            style={stagger ? { animationDelay: `${Math.min(i, 8) * 45}ms` } : undefined}
+            className={`dish-card flex flex-col overflow-hidden rounded-2xl bg-white shadow-card ring-1 ring-black/5 ${stagger ? "card-in" : ""} ${off ? "opacity-60" : "hover:shadow-lg"}`}>
             {/* Photo */}
             <div className="relative aspect-[4/3] w-full bg-gradient-to-br from-brand-50 to-gold-50">
               {it.image_url ? (
@@ -74,7 +82,7 @@ export function BucateMenu({ items, interactive = true }: { items: ApiMenuItem[]
                   ) : (
                     <button
                       onClick={() => { cart.add({ source: "stable", itemId: it.id, name: it.name, grams: it.grams, unit: it.unit ?? null, price: it.price_mdl, minQty: min }, min); toast.push(min > 1 ? `„${it.name}" adăugat (min. ${min})` : `„${it.name}" adăugat în coș`); }}
-                      className="w-full rounded-full bg-brand-500 py-2.5 text-sm font-bold text-white transition hover:bg-brand-600 active:scale-[0.98]">
+                      className="w-full rounded-full border border-brand-300 bg-white py-2.5 text-sm font-semibold text-brand-700 transition duration-150 hover:border-brand-400 hover:bg-brand-50 active:scale-[0.98]">
                       Adaugă în coș
                     </button>
                   )}

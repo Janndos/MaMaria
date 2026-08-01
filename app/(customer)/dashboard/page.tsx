@@ -1,2 +1,2 @@
 import { redirect } from "next/navigation";
-export default function DashboardRedirect() { redirect("/menu"); }
+export default function DashboardRedirect() { redirect("/meniu"); }

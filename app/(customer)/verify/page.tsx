@@ -41,7 +41,7 @@ function VerifyInner() {
     // Brief success confirmation before routing on.
     setDone(true);
     const next = params.get("next");
-    const home = data.role === "admin" ? "/gestiune" : data.role === "tehno" ? "/gestiune/comenzi" : "/menu";
+    const home = data.role === "admin" ? "/gestiune" : data.role === "tehno" ? "/gestiune/comenzi" : "/meniu";
     let dest = next && next.startsWith("/") ? next : home;
     if (data.role === "tehno" && dest === "/gestiune") dest = "/gestiune/comenzi";
     setTimeout(() => {

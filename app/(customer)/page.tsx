@@ -26,7 +26,7 @@ export default function LandingPage() {
           </p>
 
           <div className="mt-8 w-full max-w-sm space-y-3 lg:max-w-md">
-            <Link href="/menu"
+            <Link href="/meniu"
               className="block w-full rounded-2xl bg-brand-500 px-6 py-4 text-lg font-bold text-white shadow-card transition hover:bg-brand-600 active:scale-[0.98]">
               Vezi meniul de azi
             </Link>

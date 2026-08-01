@@ -9,8 +9,7 @@ type ShellUser = { name: string; role: string } | null;
 
 /** Primary destinations shown in the desktop top nav (and mirrored in the mobile drawer). */
 const NAV = [
-  { href: "/menu", label: "Meniul zilei" },
-  { href: "/order", label: "Comandă acum" },
+  { href: "/meniu", label: "Meniu" },
   { href: "/noutati", label: "Noutăți" },
 ];
 
@@ -80,7 +79,7 @@ function DesktopNav({ user }: { user: ShellUser }) {
             const on = pathname === l.href || pathname.startsWith(l.href + "/");
             return (
               <Link key={l.href} href={l.href} aria-current={on ? "page" : undefined}
-                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                className={`rounded-full px-4 py-2 text-sm font-medium transition ${
                   on ? "bg-brand-500 text-white shadow-sm" : "text-brand-700 hover:bg-brand-50"
                 }`}>
                 {l.label}
@@ -93,25 +92,25 @@ function DesktopNav({ user }: { user: ShellUser }) {
           {user ? (
             <>
               <Link href="/account"
-                className="flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold text-brand-700 transition hover:bg-brand-50">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-500 text-sm font-black text-white">
+                className="flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium text-brand-700 transition hover:bg-brand-50">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-500 text-sm font-medium text-white">
                   {user.name.trim().charAt(0).toUpperCase()}
                 </span>
                 <span className="max-w-[10rem] truncate">{user.name.split(" ")[0]}</span>
               </Link>
               <button onClick={logout}
-                className="rounded-full px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50">
+                className="rounded-full px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50">
                 Ieșire
               </button>
             </>
           ) : (
             <>
               <Link href="/login"
-                className="rounded-full px-4 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-50">
+                className="rounded-full px-4 py-2 text-sm font-medium text-brand-700 transition hover:bg-brand-50">
                 Intră în cont
               </Link>
               <Link href="/register"
-                className="rounded-full bg-brand-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-brand-600">
+                className="rounded-full bg-brand-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-600">
                 Înregistrează-te
               </Link>
             </>
@@ -155,7 +154,8 @@ function CartButton({ count }: { count: number }) {
         <path d="M9 7V5a3 3 0 0 1 6 0v2" />
       </svg>
       {count > 0 && (
-        <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-gold-500 px-1 text-[11px] font-bold text-white">
+        <span key={count}
+          className="badge-pop absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-gold-500 px-1 text-[11px] font-medium tabular-nums text-white">
           {count}
         </span>
       )}
@@ -184,7 +184,7 @@ function Drawer({ open, onClose, user }: { open: boolean; onClose: () => void; u
     router.refresh();
   }
 
-  const item = "flex items-center gap-3 rounded-xl px-4 py-3 text-[15px] font-semibold text-ink transition hover:bg-brand-50 active:scale-[0.98]";
+  const item = "flex items-center gap-3 rounded-xl px-4 py-3 text-[15px] font-medium text-ink transition hover:bg-brand-50 active:scale-[0.98]";
 
   return (
     // Fixed to the VIEWPORT so the drawer is always exactly one screen tall and the
@@ -212,8 +212,7 @@ function Drawer({ open, onClose, user }: { open: boolean; onClose: () => void; u
               <div className="my-2 border-t border-brand-100" />
             </>
           )}
-          <Link href="/menu" className={item}><Icon d="M3 5h18M3 12h18M3 19h12" />Meniul de azi</Link>
-          <Link href="/order" className={item}><Icon d="M20 7 12 3 4 7m16 0-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />Comandă acum</Link>
+          <Link href="/meniu" className={item}><Icon d="M3 5h18M3 12h18M3 19h12" />Meniu</Link>
           <Link href="/noutati" className={item}><Icon d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z" />Noutăți</Link>
           {user && (
             <>

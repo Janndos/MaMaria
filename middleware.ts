@@ -3,8 +3,9 @@ import { jwtVerify } from "jose";
 
 const secret = new TextEncoder().encode(process.env.AUTH_SECRET || "dev-secret-change-me-in-production");
 
-// Any authenticated customer area.
-const CUSTOMER_PATHS = ["/order", "/checkout", "/orders", "/account"];
+// Any authenticated customer area. (`/meniu` is public — browsing needs no login;
+// only checkout and account pages are gated.)
+const CUSTOMER_PATHS = ["/checkout", "/orders", "/account"];
 const STAFF_PREFIX = "/gestiune";
 // The only sections a "tehno" operator may open (admins see everything).
 const TEHNO_ALLOWED = ["/gestiune/meniu", "/gestiune/comenzi", "/gestiune/utilizatori"];
@@ -49,4 +50,4 @@ export async function middleware(req: NextRequest) {
   return res;
 }
 
-export const config = { matcher: ["/order/:path*", "/checkout/:path*", "/orders/:path*", "/account/:path*", "/gestiune/:path*"] };
+export const config = { matcher: ["/checkout/:path*", "/orders/:path*", "/account/:path*", "/gestiune/:path*"] };

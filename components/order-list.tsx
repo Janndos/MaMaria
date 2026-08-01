@@ -21,7 +21,7 @@ export function OrderList({ orders }: { orders: CustomerOrder[] }) {
     return (
       <EmptyState title="Nu ai plasat nicio comandă încă."
         hint="Prima comandă e la un click distanță."
-        action={<Link href="/menu" className="rounded-full bg-brand-500 px-5 py-2.5 text-sm font-bold text-white hover:bg-brand-600">Vezi meniul de azi</Link>} />
+        action={<Link href="/meniu" className="rounded-full bg-brand-500 px-5 py-2.5 text-sm font-bold text-white hover:bg-brand-600">Vezi meniul de azi</Link>} />
     );
   }
   return (

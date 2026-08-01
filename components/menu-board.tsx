@@ -81,7 +81,7 @@ export function MenuBoard({
                       ) : (
                         <button
                           onClick={() => { cart.add({ source, itemId: it.id, name: it.name, grams: it.grams, unit: it.unit ?? null, price: it.price_mdl, minQty: min }, min); toast.push(min > 1 ? `„${it.name}" adăugat (min. ${min})` : `„${it.name}" adăugat în coș`); }}
-                          className="ml-2 rounded-full bg-brand-500 px-3 py-1 text-xs font-bold text-white hover:bg-brand-600">
+                          className="ml-2 rounded-full border border-brand-300 px-3 py-1 text-xs font-semibold text-brand-700 transition duration-150 hover:border-brand-400 hover:bg-brand-50 active:scale-95">
                           Adaugă
                         </button>
                       )

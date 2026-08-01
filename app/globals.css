@@ -2,10 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { color-scheme: light; }
+:root {
+  color-scheme: light;
+  /* Motion tokens — strong custom ease-out for entrances/UI. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
 
 body {
   @apply bg-canvas text-ink font-sans antialiased;
+  line-height: 1.6;
+}
+
+/* The single uppercase style — tiny meta labels only. */
+.eyebrow {
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 500;
 }
 
 .dotted-leader {
@@ -13,6 +27,45 @@ body {
   border-bottom: 2px dotted rgba(0, 90, 100, 0.25);
   margin: 0 0.5rem 0.3rem;
   min-width: 1rem;
+}
+
+/* ---- Motion (see globals reduced-motion rule below; all use `backwards`
+   fill so the final resting state is the element's natural style, which keeps
+   content visible when animations are disabled) ---- */
+
+/* Tab-switch: the incoming panel cross-fades in with a small upward offset. */
+.tab-panel {
+  animation: panel-in 200ms var(--ease-out) backwards;
+}
+@keyframes panel-in {
+  from { opacity: 0; transform: translateY(6px); }
+}
+
+/* Dish cards: entrance used only on first mount (staggered by the component). */
+.card-in {
+  animation: card-in 280ms var(--ease-out) backwards;
+}
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(8px); }
+}
+
+/* Dish cards: subtle hover lift — hover-capable pointers only (no tap false-positives). */
+@media (hover: hover) and (pointer: fine) {
+  .dish-card { transition: transform 160ms var(--ease-out), box-shadow 160ms var(--ease-out); }
+  .dish-card:hover { transform: translateY(-2px); }
+  /* Reduced motion: keep the shadow cue, drop the movement. */
+  @media (prefers-reduced-motion: reduce) {
+    .dish-card:hover { transform: none; }
+  }
+}
+
+/* Cart badge: animate the count change so adding to cart reads without a toast. */
+.badge-pop {
+  animation: badge-pop 180ms var(--ease-out);
+}
+@keyframes badge-pop {
+  from { transform: scale(0.6); opacity: 0.4; }
+  to   { transform: scale(1); opacity: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
