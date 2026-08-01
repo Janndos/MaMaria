@@ -16,6 +16,45 @@ function backfillStableDescriptions(database: DatabaseType): void {
   } catch { /* table may not exist yet during a partial init — safe to skip */ }
 }
 
+/** Older DBs created the users table with `CHECK (role IN ('customer','admin'))`,
+ *  which rejects the "tehno" role and makes promoting a user fail with a 500.
+ *  SQLite can't ALTER a CHECK, so rebuild the table once (data preserved). */
+function migrateUserRoleCheck(database: DatabaseType): void {
+  const row = database
+    .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='users'")
+    .get() as { sql: string } | undefined;
+  if (!row || row.sql.includes("tehno")) return; // fresh schema already allows it
+
+  // foreign_keys must be toggled outside the transaction (orders.user_id → users).
+  // The transaction is atomic: if anything fails the original table is untouched,
+  // and we swallow the error so a migration hiccup can never brick startup.
+  database.pragma("foreign_keys = OFF");
+  try {
+    database.transaction(() => {
+      database.exec(`
+        CREATE TABLE users_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          full_name TEXT NOT NULL,
+          phone TEXT NOT NULL UNIQUE,
+          email TEXT,
+          password_hash TEXT NOT NULL,
+          role TEXT NOT NULL DEFAULT 'customer' CHECK (role IN ('customer','admin','tehno')),
+          phone_verified INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        INSERT INTO users_new (id, full_name, phone, email, password_hash, role, phone_verified, created_at)
+          SELECT id, full_name, phone, email, password_hash, role, phone_verified, created_at FROM users;
+        DROP TABLE users;
+        ALTER TABLE users_new RENAME TO users;
+      `);
+    })();
+  } catch (e) {
+    console.error("migrateUserRoleCheck failed (users table left unchanged):", e);
+  } finally {
+    database.pragma("foreign_keys = ON");
+  }
+}
+
 /* ---------------------------------------------------------------------------
  * Lazy database initialization.
  *
@@ -51,7 +90,7 @@ CREATE TABLE IF NOT EXISTS users (
   phone TEXT NOT NULL UNIQUE,
   email TEXT,
   password_hash TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'customer' CHECK (role IN ('customer','admin')),
+  role TEXT NOT NULL DEFAULT 'customer' CHECK (role IN ('customer','admin','tehno')),
   phone_verified INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -160,6 +199,7 @@ CREATE TABLE IF NOT EXISTS settings (
   addColumn("stable_items", "min_qty", "INTEGER NOT NULL DEFAULT 1");
   addColumn("stable_items", "description", "TEXT");
   addColumn("stable_items", "image_url", "TEXT");
+  migrateUserRoleCheck(database);
   backfillStableDescriptions(database);
 
   return database;
@@ -189,7 +229,7 @@ export default db;
 /* ---------- types ---------- */
 export type User = {
   id: number; full_name: string; phone: string; email: string | null;
-  password_hash: string; role: "customer" | "admin";
+  password_hash: string; role: "customer" | "admin" | "tehno";
   phone_verified: number; created_at: string;
 };
 export type MenuItem = {

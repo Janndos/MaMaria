@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS users (
   phone TEXT NOT NULL UNIQUE,
   email TEXT,
   password_hash TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'customer' CHECK (role IN ('customer','admin')),
+  role TEXT NOT NULL DEFAULT 'customer' CHECK (role IN ('customer','admin','tehno')),
   phone_verified INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

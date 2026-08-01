@@ -3,7 +3,7 @@ import { Card, EmptyState } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
-type Post = { id: number; title: string; body: string; tg_url: string | null; posted_at: string };
+type Post = { id: number; title: string; body: string; image_url: string | null; tg_url: string | null; posted_at: string };
 
 export default function NoutatiPage() {
   const tgUrl = getSetting("telegram_url", "https://t.me/mamaria_md");
@@ -70,7 +70,11 @@ export default function NoutatiPage() {
         ) : (
           <div className="space-y-3">
             {posts.map((p) => (
-              <Card key={p.id} className="p-4">
+              <Card key={p.id} className="overflow-hidden p-4">
+                {p.image_url && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={p.image_url} alt="" className="mb-3 max-h-72 w-full rounded-lg object-cover" />
+                )}
                 <p className="font-display font-bold text-brand-800">{p.title}</p>
                 <p className="mt-1 text-sm text-slate-600">{p.body}</p>
                 <p className="mt-2 text-xs text-slate-400">

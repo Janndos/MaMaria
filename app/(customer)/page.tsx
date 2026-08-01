@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { getMenuByDate, todayISO } from "@/lib/db";
 import { Logo } from "@/components/logo";
+import cooking from "../cooking.png";
+import order from "../order.png";
+import pickup from "../pickup.png";
 
 const FEATURES = [
-  { icon: "🍲", title: "Gătit zilnic", hint: "Bucate calde, proaspete în fiecare zi." },
-  { icon: "📱", title: "Comanzi online", hint: "Alegi din meniu și trimiți comanda rapid." },
-  { icon: "🛍️", title: "Ridici la tejghea", hint: "Plata numerar sau card, la ridicare." },
+  { img: cooking, title: "Gătit zilnic", hint: "Bucate calde, proaspete în fiecare zi." },
+  { img: order, title: "Comanzi online", hint: "Alegi din meniu și trimiți comanda rapid." },
+  { img: pickup, title: "Ridici la tejghea", hint: "Plata numerar sau card, la ridicare." },
 ];
 
 export default function LandingPage() {
@@ -45,7 +48,9 @@ export default function LandingPage() {
           {FEATURES.map((f) => (
             <div key={f.title}
               className="flex flex-col items-center rounded-xl bg-white p-3 shadow-sm lg:flex-row lg:items-center lg:gap-4 lg:rounded-2xl lg:p-5 lg:shadow-card">
-              <span className="text-lg lg:text-3xl">{f.icon}</span>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={f.img.src} alt="" aria-hidden
+                className="h-7 w-7 shrink-0 object-contain lg:h-11 lg:w-11" />
               <span className="mt-1 text-[11px] font-semibold text-slate-600 lg:mt-0">
                 <span className="lg:block lg:text-base lg:font-bold lg:text-brand-800">{f.title}</span>
                 <span className="hidden text-sm font-normal text-slate-500 lg:block">{f.hint}</span>
