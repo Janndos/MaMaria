@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge, Button, Card, EmptyState, fmtMdl, Modal, ORDER_STATUS_RO, Spinner, Textarea } from "@/components/ui";
 import { useToast } from "@/components/providers";
-import { locationLabel } from "@/lib/locations";
+import { locationLabel, PICKUP_LOCATIONS } from "@/lib/locations";
 import { printReceipts, preparePrintList } from "@/lib/receipt";
 
 const STATUSES = ["pending", "confirmed", "preparing", "ready", "completed", "cancelled"] as const;
@@ -11,6 +11,29 @@ const STATUSES = ["pending", "confirmed", "preparing", "ready", "completed", "ca
 function todayStr(): string {
   const n = new Date();
   return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
+}
+
+/** "Azi" = every order fulfilled today, "alta zi" = the picked date, "" = no date filter. */
+type DateMode = "all" | "today" | "custom";
+
+/** One pill in a filter group. */
+function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button onClick={onClick}
+      className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${active ? "bg-brand-500 text-white" : "border border-brand-200 text-brand-700 hover:bg-brand-50"}`}>
+      {children}
+    </button>
+  );
+}
+
+/** A labelled row of filter pills. */
+function FilterGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="w-16 shrink-0 text-xs font-bold uppercase tracking-wide text-slate-400">{label}</span>
+      {children}
+    </div>
+  );
 }
 
 type Order = {
@@ -66,11 +89,16 @@ export default function AdminOrdersPage() {
   const chime = useOrderChime();
   const [orders, setOrders] = useState<Order[] | null>(null);
   const [filter, setFilter] = useState<string>("");
+  const [location, setLocation] = useState<string>("");
+  const [dateMode, setDateMode] = useState<DateMode>("all");
+  const [customDate, setCustomDate] = useState(todayStr);
   const [soundOn, setSoundOn] = useState(false);
   const [cancelling, setCancelling] = useState<Order | null>(null);
   const [cancelReason, setCancelReason] = useState("");
-  // Date whose orders the "Printează ziua" button will print (defaults to today).
-  const [printDate, setPrintDate] = useState(todayStr);
+
+  // The active fulfillment-day filter ("" = every day). Also drives what the
+  // "Printează ziua" button prints, so the list and the printout always agree.
+  const dateFilter = dateMode === "today" ? todayStr() : dateMode === "custom" ? customDate : "";
 
   const maxSeenRef = useRef<number>(-1); // highest order id ever observed
   const soundRef = useRef(false);
@@ -85,8 +113,13 @@ export default function AdminOrdersPage() {
     const seq = ++reqSeq.current;
     if (showLoading) setOrders(null); // filter change → show the loading spinner immediately
     let data: { orders?: Order[] };
+    const qs = new URLSearchParams();
+    if (filter) qs.set("status", filter);
+    if (location) qs.set("location", location);
+    if (dateFilter) qs.set("pickupDate", dateFilter);
     try {
-      const res = await fetch(`/api/admin/orders${filter ? `?status=${filter}` : ""}`);
+      const query = qs.toString();
+      const res = await fetch(`/api/admin/orders${query ? `?${query}` : ""}`);
       data = await res.json();
     } catch {
       if (seq === reqSeq.current && showLoading) setOrders([]);
@@ -104,7 +137,7 @@ export default function AdminOrdersPage() {
       maxSeenRef.current = maxId;
     }
     setOrders(list);
-  }, [filter, chime]);
+  }, [filter, location, dateFilter, chime]);
 
   // On filter change (and first mount): show the spinner and fetch fresh, then
   // poll every 5s silently so the visible list never flashes stale rows.
@@ -119,19 +152,23 @@ export default function AdminOrdersPage() {
       toast.push("Permiteți ferestrele pop-up pentru a printa.", "error");
   }
 
-  // Print every (non-cancelled) order to be fulfilled on `printDate`.
+  // Print every (non-cancelled) order to be fulfilled on the selected day. With the
+  // date filter on "Toate" there is no selected day, so we fall back to today.
   async function printDay() {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(printDate)) { toast.push("Alegeți o dată validă.", "error"); return; }
+    const day = dateFilter || todayStr();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) { toast.push("Alegeți o dată validă.", "error"); return; }
+    const qs = new URLSearchParams({ pickupDate: day });
+    if (location) qs.set("location", location);
     let all: Order[] = [];
     try {
-      const res = await fetch(`/api/admin/orders?pickupDate=${encodeURIComponent(printDate)}`);
+      const res = await fetch(`/api/admin/orders?${qs}`);
       all = (await res.json()).orders ?? [];
     } catch {
       toast.push("Nu am putut încărca comenzile pentru printare.", "error");
       return;
     }
     const list = preparePrintList(all);
-    const label = new Date(`${printDate}T12:00:00`).toLocaleDateString("ro-RO", { day: "numeric", month: "long", year: "numeric" });
+    const label = new Date(`${day}T12:00:00`).toLocaleDateString("ro-RO", { day: "numeric", month: "long", year: "numeric" });
     if (!list.length) { toast.push(`Nu există comenzi de printat pentru ${label}.`, "error"); return; }
     if (!printReceipts(list, { title: `Comenzi ${label}`, layout: "quad" }))
       toast.push("Permiteți ferestrele pop-up pentru a printa.", "error");
@@ -163,27 +200,38 @@ export default function AdminOrdersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
-          <button onClick={() => setFilter("")}
-            className={`rounded-full px-4 py-1.5 text-sm font-semibold ${filter === "" ? "bg-brand-500 text-white" : "border border-brand-200 text-brand-700"}`}>
-            Toate
-          </button>
+      {/* Filters, grouped by dimension. All three combine (AND). */}
+      <Card className="space-y-3 p-4">
+        <FilterGroup label="Status">
+          <Chip active={filter === ""} onClick={() => setFilter("")}>Toate</Chip>
           {STATUSES.map((s) => (
-            <button key={s} onClick={() => setFilter(s)}
-              className={`rounded-full px-4 py-1.5 text-sm font-semibold ${filter === s ? "bg-brand-500 text-white" : "border border-brand-200 text-brand-700"}`}>
-              {ORDER_STATUS_RO[s].label}
-            </button>
+            <Chip key={s} active={filter === s} onClick={() => setFilter(s)}>{ORDER_STATUS_RO[s].label}</Chip>
           ))}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1.5 rounded-full border border-brand-200 py-1 pl-3 pr-1">
-            <input type="date" value={printDate}
-              onChange={(e) => setPrintDate(e.target.value)}
-              aria-label="Ziua comenzilor de printat"
+        </FilterGroup>
+
+        <FilterGroup label="Locul">
+          <Chip active={location === ""} onClick={() => setLocation("")}>Toate</Chip>
+          {PICKUP_LOCATIONS.map((l) => (
+            <Chip key={l.id} active={location === l.id} onClick={() => setLocation(l.id)}>{l.name}</Chip>
+          ))}
+        </FilterGroup>
+
+        <FilterGroup label="Data">
+          <Chip active={dateMode === "all"} onClick={() => setDateMode("all")}>Toate</Chip>
+          <Chip active={dateMode === "today"} onClick={() => setDateMode("today")}>Azi</Chip>
+          <div className={`flex items-center gap-1.5 rounded-full border py-1 pl-3 pr-3 ${dateMode === "custom" ? "border-brand-500 bg-brand-50" : "border-brand-200"}`}>
+            <input type="date" value={customDate}
+              onChange={(e) => { setCustomDate(e.target.value); setDateMode("custom"); }}
+              onClick={() => setDateMode("custom")}
+              aria-label="Altă zi"
               className="bg-transparent text-sm font-semibold text-brand-700 outline-none" />
-            <Button small variant="outline" onClick={printDay}>🖨 Printează ziua</Button>
           </div>
+        </FilterGroup>
+
+        <div className="flex flex-wrap items-center gap-2 border-t border-brand-100 pt-3">
+          <Button small variant="outline" onClick={printDay}>
+            🖨 Printează ziua {dateFilter ? `(${dateFilter})` : "(azi)"}
+          </Button>
           {soundOn ? (
             <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-1.5 text-sm font-semibold text-emerald-700">
               🔔 Sunet activ
@@ -192,7 +240,7 @@ export default function AdminOrdersPage() {
             <Button small variant="outline" onClick={enableSound}>🔔 Activează sunetul pentru comenzi</Button>
           )}
         </div>
-      </div>
+      </Card>
 
       {orders === null ? (
         <Spinner label="Se încarcă comenzile..." />

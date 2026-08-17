@@ -36,12 +36,9 @@ export default function MeniuPage() {
   const staleChecked = useRef(false);
 
   useEffect(() => {
-    fetch("/api/menu/today").then((r) => r.json()).then((d: MenuResp) => {
-      setData(d);
-      // Open on "Programare" when today's menu can't be ordered right now.
-      const dailyOpen = !!d.menu && !d.cutoffPassed && d.workingDay !== false;
-      if (!dailyOpen && d.stableItems.length) setTab("programare");
-    });
+    // The page always opens on "Pentru azi" — the daily menu is the default view
+    // even when it is closed for ordering (a notice then points to „Programare”).
+    fetch("/api/menu/today").then((r) => r.json()).then(setData);
   }, []);
 
   // Clear stale daily items if the cart still holds a previous day's menu.

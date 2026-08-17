@@ -69,8 +69,10 @@ export function BucateMenu({ items, interactive = true }: { items: ApiMenuItem[]
               </div>
               {it.description && <p className="mt-2 text-sm leading-relaxed text-slate-500">{it.description}</p>}
 
+              {/* `mt-auto` pins the action to the card's bottom edge, so buttons line
+                  up across a row no matter how long each description is. */}
               {interactive && !off && (
-                <div className="mt-4 pt-1">
+                <div className="mt-auto pt-4">
                   {inCart ? (
                     <div className="flex items-center justify-between rounded-full bg-brand-50 p-1">
                       <button aria-label={`Scade cantitatea pentru ${it.name}`} onClick={dec}

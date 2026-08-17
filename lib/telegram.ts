@@ -59,6 +59,21 @@ export async function sendPhoto(
   return callTelegram("sendPhoto", form);
 }
 
+/** Send a video (news announcement clip + caption). */
+export async function sendVideo(
+  video: Buffer, caption?: string, opts?: { filename?: string; type?: string },
+): Promise<TgResult> {
+  if (!telegramConfigured()) return { ok: false, error: NOT_CONFIGURED };
+  const form = new FormData();
+  form.append(
+    "video",
+    new Blob([new Uint8Array(video)], { type: opts?.type ?? "video/mp4" }),
+    opts?.filename ?? "noutate.mp4",
+  );
+  if (caption) form.append("caption", caption);
+  return callTelegram("sendVideo", form);
+}
+
 /** Send a plain-text announcement (no image). */
 export async function sendMessage(text: string): Promise<TgResult> {
   if (!telegramConfigured()) return { ok: false, error: NOT_CONFIGURED };

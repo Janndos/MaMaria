@@ -21,7 +21,6 @@ export default function LandingPage() {
         {/* Hero */}
         <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
           <Logo className="h-32 sm:h-40" />
-          <div className="mt-4 h-1 w-16 rounded-full bg-gold-400" />
 
           <p className="mx-auto mt-6 max-w-[32ch] text-[17px] leading-relaxed text-slate-600 lg:mx-0 lg:text-lg">
             Ma&rsquo;Maria gătește zilnic bucate calde, gustoase și simple, ca acasă.

@@ -17,11 +17,14 @@ export async function GET(req: NextRequest) {
     // Optional fulfillment-day filter (YYYY-MM-DD) — used by day printing. Falls
     // back to the created date for legacy orders that predate pickup_date.
     const pickupDate = sp.get("pickupDate");
+    // Optional pickup-point filter (a PICKUP_LOCATIONS id, e.g. "draxlmaier-1").
+    const location = sp.get("location");
 
     const where: string[] = [];
     const args: unknown[] = [];
     if (status) { where.push("o.status = ?"); args.push(status); }
     if (pickupDate) { where.push("COALESCE(o.pickup_date, date(o.created_at)) = ?"); args.push(pickupDate); }
+    if (location) { where.push("o.pickup_location = ?"); args.push(location); }
 
     const sql = `
       SELECT o.*, u.full_name, u.phone

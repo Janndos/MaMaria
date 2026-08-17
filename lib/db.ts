@@ -169,9 +169,12 @@ CREATE TABLE IF NOT EXISTS stable_items (
 );
 CREATE TABLE IF NOT EXISTS news_posts (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  title TEXT NOT NULL,
+  -- The title is optional: posts without one are stored with an empty string and
+  -- rendered as text-only announcements.
+  title TEXT NOT NULL DEFAULT '',
   body TEXT NOT NULL,
   image_url TEXT,
+  video_url TEXT,
   tg_url TEXT,
   posted_at TEXT NOT NULL DEFAULT (datetime('now')),
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -199,6 +202,7 @@ CREATE TABLE IF NOT EXISTS settings (
   addColumn("stable_items", "min_qty", "INTEGER NOT NULL DEFAULT 1");
   addColumn("stable_items", "description", "TEXT");
   addColumn("stable_items", "image_url", "TEXT");
+  addColumn("news_posts", "video_url", "TEXT");
   migrateUserRoleCheck(database);
   backfillStableDescriptions(database);
 
@@ -250,7 +254,7 @@ export type Order = {
   cancellation_reason: string | null; created_at: string;
 };
 export type NewsPost = {
-  id: number; title: string; body: string; image_url: string | null;
+  id: number; title: string; body: string; image_url: string | null; video_url: string | null;
   tg_url: string | null; posted_at: string; created_at: string;
 };
 

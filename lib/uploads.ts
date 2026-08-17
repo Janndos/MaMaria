@@ -13,9 +13,9 @@ export function ensureUploadDir() {
   if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
-/** Only allow our own image basenames — blocks path traversal from clients. */
+/** Only allow our own media basenames — blocks path traversal from clients. */
 export function safeUploadPath(basename: string): string | null {
-  if (!/^[\w.-]+\.(png|jpe?g|webp|gif)$/i.test(basename)) return null;
+  if (!/^[\w.-]+\.(png|jpe?g|webp|gif|mp4|webm|mov)$/i.test(basename)) return null;
   const full = path.join(UPLOAD_DIR, basename);
   if (path.dirname(full) !== UPLOAD_DIR) return null;
   return full;
@@ -29,7 +29,15 @@ export const IMAGE_EXT: Record<string, string> = {
   "image/gif": "gif",
 };
 
+/** MIME → file extension for accepted video types (news announcements). */
+export const VIDEO_EXT: Record<string, string> = {
+  "video/mp4": "mp4",
+  "video/webm": "webm",
+  "video/quicktime": "mov",
+};
+
 /** File extension → Content-Type for serving. */
 export const CONTENT_TYPE: Record<string, string> = {
   png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif",
+  mp4: "video/mp4", webm: "video/webm", mov: "video/quicktime",
 };

@@ -3,7 +3,10 @@ import { Card, EmptyState } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
-type Post = { id: number; title: string; body: string; image_url: string | null; tg_url: string | null; posted_at: string };
+type Post = {
+  id: number; title: string; body: string;
+  image_url: string | null; video_url: string | null; tg_url: string | null; posted_at: string;
+};
 
 export default function NoutatiPage() {
   const tgUrl = getSetting("telegram_url", "https://t.me/mamaria_md");
@@ -31,7 +34,9 @@ export default function NoutatiPage() {
       <div className="relative overflow-hidden rounded-card shadow-card">
         <div className="bg-[#517DA2] px-4 py-3 text-white">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 font-display text-lg font-black">M</div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo_M.png" alt="Ma'Maria" width={40} height={40}
+              className="h-10 w-10 shrink-0 rounded-full bg-white object-cover" />
             <div className="min-w-0">
               <p className="truncate font-bold leading-tight">Ma&rsquo;Maria Cafe &amp; Catering</p>
               <p className="text-xs text-white/70">canal · Telegram</p>
@@ -45,8 +50,8 @@ export default function NoutatiPage() {
           <div className="select-none space-y-3 blur-[3px]" aria-hidden>
             {bubbles.map((b, i) => (
               <div key={i} className="max-w-[85%] rounded-2xl rounded-tl-md bg-white p-3 shadow-sm">
-                <p className="text-sm font-bold text-[#517DA2]">{b.title}</p>
-                <p className="mt-0.5 line-clamp-2 text-sm text-slate-700">{b.body}</p>
+                {b.title && <p className="text-sm font-bold text-[#517DA2]">{b.title}</p>}
+                <p className={`line-clamp-2 text-sm text-slate-700 ${b.title ? "mt-0.5" : ""}`}>{b.body}</p>
                 <p className="mt-1 text-right text-[10px] text-slate-400">👁 1.2K</p>
               </div>
             ))}
@@ -71,12 +76,16 @@ export default function NoutatiPage() {
           <div className="space-y-3">
             {posts.map((p) => (
               <Card key={p.id} className="overflow-hidden p-4">
+                {p.video_url && (
+                  <video src={p.video_url} controls playsInline preload="metadata"
+                    className="mb-3 max-h-72 w-full rounded-lg bg-black object-contain" />
+                )}
                 {p.image_url && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={p.image_url} alt="" className="mb-3 max-h-72 w-full rounded-lg object-cover" />
                 )}
-                <p className="font-display font-bold text-brand-800">{p.title}</p>
-                <p className="mt-1 text-sm text-slate-600">{p.body}</p>
+                {p.title && <p className="font-display font-bold text-brand-800">{p.title}</p>}
+                <p className={`text-sm text-slate-600 ${p.title ? "mt-1" : ""}`}>{p.body}</p>
                 <p className="mt-2 text-xs text-slate-400">
                   {new Date(p.posted_at + "Z").toLocaleDateString("ro-RO", { day: "numeric", month: "long" })}
                   {p.tg_url && <> · <a className="text-brand-600 underline" href={p.tg_url} target="_blank" rel="noreferrer">vezi pe Telegram</a></>}
