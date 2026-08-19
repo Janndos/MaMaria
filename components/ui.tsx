@@ -170,12 +170,12 @@ export function EmptyState({ title, hint, action }: { title: string; hint?: stri
 }
 
 export function Modal({
-  open, title, children, onClose,
-}: { open: boolean; title: string; children: ReactNode; onClose: () => void }) {
+  open, title, children, onClose, wide,
+}: { open: boolean; title: string; children: ReactNode; onClose: () => void; wide?: boolean }) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-brand-900/40 p-4 sm:items-center" onClick={onClose} role="dialog" aria-modal="true">
-      <div className="w-full max-w-md rounded-card bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+      <div className={`w-full ${wide ? "max-w-2xl" : "max-w-md"} rounded-card bg-white p-6 shadow-xl`} onClick={(e) => e.stopPropagation()}>
         <h3 className="font-display text-lg font-semibold text-brand-800">{title}</h3>
         <div className="mt-3">{children}</div>
       </div>

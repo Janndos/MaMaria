@@ -16,7 +16,9 @@ export async function GET(req: NextRequest) {
     await requireStaff();
     const sp = req.nextUrl.searchParams;
     const q = sp.get("q") ?? "";
-    const limit = Math.min(Math.max(Number(sp.get("limit")) || 50, 1), 200);
+    // The picker pulls the WHOLE catalogue once and filters in the browser, so the
+    // admin always sees every product and typing never waits on the network.
+    const limit = Math.min(Math.max(Number(sp.get("limit")) || 50, 1), 5000);
     return NextResponse.json({ products: searchProducts(q, limit), total: countProducts() });
   });
 }

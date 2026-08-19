@@ -31,6 +31,7 @@ export default function AdminUploadPage() {
   const [parsing, setParsing] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const addedFromCatalog = useRef(0);
 
   async function parseFile() {
     const file = fileRef.current?.files?.[0];
@@ -79,20 +80,28 @@ export default function AdminUploadPage() {
   }
 
   /** Products chosen from the price list arrive with name + price only. Category
-   *  and gram weight stay blank on purpose — the catalogue does not store them. */
+   *  and gram weight stay blank on purpose — the catalogue does not store them.
+   *  A name typed into the picker that isn't in the catalogue arrives with price 0
+   *  and gets a blank price field too. */
   function addFromCatalog(products: CatalogProduct[]) {
     setRows((prev) => [
       ...(prev ?? []),
       ...products.map((p) => ({
         category: "", name: p.name, grams: "",
-        priceMdl: String(p.price), warnings: [], fromCatalog: true,
+        priceMdl: p.price > 0 ? String(p.price) : "", warnings: [], fromCatalog: true,
       })),
     ]);
-    toast.push(
-      products.length === 1
-        ? `„${products[0].name}" adăugat — completează categoria și gramajul.`
-        : `${products.length} produse adăugate — completează categoria și gramajul.`,
-    );
+    addedFromCatalog.current += products.length;
+  }
+
+  /** One summary toast when the picker closes, instead of one per click. */
+  function closePicker() {
+    setPickerOpen(false);
+    const n = addedFromCatalog.current;
+    addedFromCatalog.current = 0;
+    if (n > 0) {
+      toast.push(`${n} produs${n === 1 ? "" : "e"} adăugat${n === 1 ? "" : "e"} — completează categoria și gramajul.`);
+    }
   }
 
   async function publish(asDraft: boolean) {
@@ -263,7 +272,7 @@ export default function AdminUploadPage() {
         </>
       )}
 
-      <CatalogPicker open={pickerOpen} onClose={() => setPickerOpen(false)} onAdd={addFromCatalog} />
+      <CatalogPicker open={pickerOpen} onClose={closePicker} onAdd={addFromCatalog} />
     </div>
   );
 }
