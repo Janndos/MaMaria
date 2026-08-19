@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, fmtMdl, Input, Modal, Spinner } from "@/components/ui";
 
-export type CatalogProduct = { id: number; name: string; price: number };
+export type CatalogProduct = { id: number; name: string; price: number; grams: number };
 
 /** Strip diacritics and case so "Mămăligă" is found by typing "mamaliga". */
 function fold(s: string): string {
@@ -41,9 +41,10 @@ function rank(folded: string, q: string, tokens: string[], squashedQ: string): n
  * always sees the full list and typing filters it instantly. Clicking a name adds
  * it to the menu table straight away and leaves the dialog open for the next pick.
  *
- * The catalogue stores only a name and a price — it has no category and no gram
- * weight — so every product added from here lands in the table with those two
- * fields deliberately blank for the admin to complete before publishing.
+ * The catalogue stores a name, a price and (once someone fills it in on the
+ * Catalog screen) a portion weight. It never stores a category, so a product added
+ * from here always lands in the table with the category blank; the gramaj is
+ * pre-filled when the catalogue knows it and left blank when it is still 0.
  */
 export function CatalogPicker({
   open, onClose, onAdd,
@@ -110,7 +111,7 @@ export function CatalogPicker({
   function addTyped() {
     const name = q.trim();
     if (!name) return;
-    onAdd([{ id: -Date.now(), name, price: 0 }]);
+    onAdd([{ id: -Date.now(), name, price: 0, grams: 0 }]);
     setQ("");
   }
 
@@ -179,6 +180,9 @@ export function CatalogPicker({
                       <span className="shrink-0 rounded-full bg-brand-500 px-2 py-0.5 text-xs font-bold text-white">
                         ✓ {count}
                       </span>
+                    )}
+                    {p.grams > 0 && (
+                      <span className="shrink-0 text-xs tabular-nums text-slate-400">{p.grams} g</span>
                     )}
                     <span className="shrink-0 font-semibold tabular-nums text-brand-700">{fmtMdl(p.price)}</span>
                   </button>

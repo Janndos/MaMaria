@@ -254,7 +254,11 @@ CREATE TABLE IF NOT EXISTS settings (
 CREATE TABLE IF NOT EXISTS products (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
-  price NUMERIC(10,2) NOT NULL
+  price NUMERIC(10,2) NOT NULL,
+  -- Portion weight in grams. The imported price list carries no weights, so this
+  -- defaults to 0 ("unset") and the admin can fill it in over time from the
+  -- Catalog screen. A product with grams > 0 pre-fills the menu builder.
+  grams INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
 `);
@@ -277,6 +281,7 @@ CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
   addColumn("stable_items", "description", "TEXT");
   addColumn("stable_items", "image_url", "TEXT");
   addColumn("news_posts", "video_url", "TEXT");
+  addColumn("products", "grams", "INTEGER NOT NULL DEFAULT 0");
   migrateUserRoleCheck(database);
   backfillStableDescriptions(database);
   seedProductsIfEmpty(database);
@@ -328,9 +333,10 @@ export type Order = {
   pickup_time: string; pickup_date: string | null; pickup_location: string | null; comment: string | null;
   cancellation_reason: string | null; created_at: string;
 };
-/** A row of the reference price list. Carries no category and no gram weight —
- *  the admin supplies those when pulling one into a daily menu. */
-export type Product = { id: number; name: string; price: number };
+/** A row of the reference price list. `grams` is 0 when nobody has filled the
+ *  portion weight in yet; the category is never stored here, so the admin always
+ *  supplies that when pulling a product into a daily menu. */
+export type Product = { id: number; name: string; price: number; grams: number };
 export type NewsPost = {
   id: number; title: string; body: string; image_url: string | null; video_url: string | null;
   tg_url: string | null; posted_at: string; created_at: string;
@@ -431,14 +437,18 @@ export function getStableItemById(id: number): StableItem | undefined {
 export function searchProducts(q: string, limit = 50): Product[] {
   const term = q.trim();
   if (!term) {
-    return db.prepare("SELECT id, name, price FROM products ORDER BY name LIMIT ?").all(limit) as Product[];
+    return db.prepare("SELECT id, name, price, grams FROM products ORDER BY name LIMIT ?").all(limit) as Product[];
   }
   return db.prepare(`
-    SELECT id, name, price FROM products
+    SELECT id, name, price, grams FROM products
     WHERE name LIKE '%' || ? || '%'
     ORDER BY (CASE WHEN name LIKE ? || '%' THEN 0 ELSE 1 END), name
     LIMIT ?
   `).all(term, term, limit) as Product[];
+}
+
+export function getProductById(id: number): Product | undefined {
+  return db.prepare("SELECT id, name, price, grams FROM products WHERE id = ?").get(id) as Product | undefined;
 }
 
 /** Total number of rows in the price list (shown as a hint in the picker). */

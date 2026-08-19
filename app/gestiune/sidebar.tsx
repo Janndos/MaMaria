@@ -8,6 +8,7 @@ const NAV = [
   { href: "/gestiune/incarca", label: "Încarcă meniul", icon: "M12 16V4m0 0 4 4m-4-4-4 4M4 20h16" },
   { href: "/gestiune/meniu", label: "Meniul zilei", icon: "M3 5h18M3 12h18M3 19h12" },
   { href: "/gestiune/produse-permanente", label: "Produse permanente", icon: "M20 7 12 3 4 7m16 0-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" },
+  { href: "/gestiune/catalog", label: "Catalog", icon: "M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" },
   { href: "/gestiune/comenzi", label: "Comenzi", icon: "M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" },
   { href: "/gestiune/noutati", label: "Noutăți", icon: "M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-4 0V9M18 14h-8M15 18h-5M10 6h8v4h-8V6Z" },
   { href: "/gestiune/utilizatori", label: "Utilizatori", icon: "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" },

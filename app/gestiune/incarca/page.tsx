@@ -79,15 +79,17 @@ export default function AdminUploadPage() {
     setPickerOpen(true);
   }
 
-  /** Products chosen from the price list arrive with name + price only. Category
-   *  and gram weight stay blank on purpose — the catalogue does not store them.
-   *  A name typed into the picker that isn't in the catalogue arrives with price 0
-   *  and gets a blank price field too. */
+  /** Products chosen from the price list arrive with a name, a price and — when
+   *  someone has filled it in on the Catalog screen — a portion weight. The
+   *  category is never stored in the catalogue, so it always starts blank, and a
+   *  gramaj of 0 means "not filled in yet" and also starts blank. A name typed
+   *  into the picker that isn't in the catalogue arrives with price 0. */
   function addFromCatalog(products: CatalogProduct[]) {
     setRows((prev) => [
       ...(prev ?? []),
       ...products.map((p) => ({
-        category: "", name: p.name, grams: "",
+        category: "", name: p.name,
+        grams: p.grams > 0 ? String(p.grams) : "",
         priceMdl: p.price > 0 ? String(p.price) : "", warnings: [], fromCatalog: true,
       })),
     ]);
