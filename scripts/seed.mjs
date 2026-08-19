@@ -4,6 +4,7 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { seedStableDefaults } from "./stable-defaults.mjs";
+import { seedProductsIfEmpty } from "./products-catalog.mjs";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const dataDir = path.join(root, "data");
@@ -87,6 +88,11 @@ if (!menu) {
 const stable = seedStableDefaults(db);
 if (stable.inserted) console.log(`Produse permanente adăugate (${stable.inserted}).`);
 else console.log(`Produse permanente există deja (${stable.existing}) — nu au fost modificate.`);
+
+/* Product price list — the catalogue the manual menu builder picks from. */
+const products = seedProductsIfEmpty(db, root);
+if (products.inserted) console.log(`Catalog de prețuri adăugat (${products.inserted} produse).`);
+else console.log(`Catalog de prețuri există deja (${products.existing}) — nu a fost modificat.`);
 
 /* News */
 const newsCount = db.prepare("SELECT COUNT(*) c FROM news_posts").get().c;

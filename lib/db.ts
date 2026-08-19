@@ -183,6 +183,18 @@ CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
+-- Product price list ("Lista de preturi"). A reference catalogue of every dish the
+-- kitchen sells with its price — NOT an orderable table. The admin picks from it
+-- when building a daily menu by hand, then fills in the category and gram weight,
+-- which this list does not carry. Seeded by scripts/seed-products.mjs.
+-- NOTE: no UNIQUE on name — the same dish legitimately appears at two prices
+-- (e.g. "Snitel Vienez MM" at 75 and at 200).
+CREATE TABLE IF NOT EXISTS products (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  price NUMERIC(10,2) NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
 `);
 
   /* ---------- lightweight migrations (existing DBs) ----------
@@ -253,6 +265,9 @@ export type Order = {
   pickup_time: string; pickup_date: string | null; pickup_location: string | null; comment: string | null;
   cancellation_reason: string | null; created_at: string;
 };
+/** A row of the reference price list. Carries no category and no gram weight —
+ *  the admin supplies those when pulling one into a daily menu. */
+export type Product = { id: number; name: string; price: number };
 export type NewsPost = {
   id: number; title: string; body: string; image_url: string | null; video_url: string | null;
   tg_url: string | null; posted_at: string; created_at: string;
@@ -333,6 +348,26 @@ export function getStableItems(availableOnly = false): StableItem[] {
 
 export function getStableItemById(id: number): StableItem | undefined {
   return db.prepare("SELECT * FROM stable_items WHERE id = ?").get(id) as StableItem | undefined;
+}
+
+/** Search the price list by name. Empty query returns the head of the catalogue.
+ *  Names that START with the query rank first, then the rest alphabetically. */
+export function searchProducts(q: string, limit = 50): Product[] {
+  const term = q.trim();
+  if (!term) {
+    return db.prepare("SELECT id, name, price FROM products ORDER BY name LIMIT ?").all(limit) as Product[];
+  }
+  return db.prepare(`
+    SELECT id, name, price FROM products
+    WHERE name LIKE '%' || ? || '%'
+    ORDER BY (CASE WHEN name LIKE ? || '%' THEN 0 ELSE 1 END), name
+    LIMIT ?
+  `).all(term, term, limit) as Product[];
+}
+
+/** Total number of rows in the price list (shown as a hint in the picker). */
+export function countProducts(): number {
+  return (db.prepare("SELECT COUNT(*) c FROM products").get() as { c: number }).c;
 }
 
 export function todayISO(): string {

@@ -1,0 +1,615 @@
+# Ma'Maria product price list (catalogue) — source for scripts/seed-products.mjs
+# Format: <name>|<price in MDL lei>. Blank lines and lines starting with # are ignored.
+# "Snitel Vienez MM" intentionally appears twice with different prices — the
+# products table has NO unique constraint on name.
+Chec de ciocolata|12
+Torta cu Ciocolata si Visina|16
+Pesmeti cu STAFIDE|10
+Mini placinta cu branza de vaci|6
+Mini placinta cu varza|6
+Sos Perfect|5
+Jeleu Cioburi de sticla|15
+Paste cu ciuperci MB|44
+Fileu de pui copt in sos alb MB|57
+Crenvusca in iuvca|20
+Briosa cu lamie|14
+Briosa cu vanilie|14
+Biscuit cu CIOCOLATA|5
+Biscuit RED VELVET|5
+Clatite cu halva|12
+Clatite cu ciocolata|12
+Budinca din brinza|12
+Cartofi PAI|16
+Pirjoala pentru BURGER|0
+Burger CLASSIC|37
+Cartofi FELII|16
+Ceai ALTHAUS|10
+Biscuit cu brinzica|3
+Salata din rosii si castraveti MM|28
+Prajitura Ecler|17
+Prajitura Tiramisu|22
+Tort din vafe|19
+Briosa cu Visina|15
+Covrigi/pretzels|7
+Cafea Americano ARABICA|12
+Ciocolata fierbinte|16
+Supa cu legume MM|35
+Supa cu legume MB|44
+Snitel din piept de pui MB|72
+Bulion de crabi|0
+Cartofi_Bratkartoffeln|18
+Aripioare picante|27
+Prajitura din pandispan cu NUCA|19
+Prajitura Pavlova|18
+Prajitura Brownie cu MM's|22
+Sandwich cu carne de pui MM 2|30
+Sandwich cu carne de porc afumat MM|30
+Sandwich Triunghi cu carne de pui MM|30
+Cartofi copti cu usturoi|18
+Prajitura din pandispan cu VISINA|19
+Cheese cake|18
+Cafea Capucino ARABICA|14
+Cafea Latte ROBUSTA|12
+Cafea Latte ARABICA|14
+Supa cu crab albastru|25
+Placinta cu carne de pui (P)|18
+Tort Napoleon|20
+Ceai cu COACAZA MM|16
+Cafea Capucino ROBUSTA|12
+Cafea Americano ROBUSTA|10
+Canape cu creveti|20.5
+Gustare cu carne de pui si becon|18.5
+Mini sandwich cu file afumat|15.5
+Ciakapuli din carne de vita|37
+Ceai|8
+BERE, fara alcool|22
+Sandwich cu cotlet de porc afumat MM|30
+Sandwich cu piept de pui afumat MM|30
+Paine alba cebata cu seminte|12
+Burger UFO MM|40
+Chefir la pahar 2.5%|6
+Liulea kebab|32
+Supa cu pelmeni (Дюшбара)|22
+Cartofi cu carne vita cu naut (Бозбаш)|25
+Ciorba cu perisoare|17
+Supa cu fidea/taietei de casa|20
+Supa cu legume|21
+Supa cu mazare|18
+Supa de peste scrum|21
+Cartofi copti in sos alb|20
+Cartofi cu varza|18
+Cartofi fierti cu marar (P)|21
+Cartofi fierti cu pastari (P)|21
+Cartofi in sos alb cu ciuperci|21
+Cartofi scazuti cu carne de purcel|25
+Cartofi scazuti cu legume (P)|19
+Cartofi scazuti cu varza|18
+Cartofi scazuti in sos alb|19
+Coltunasi cu cartofi|22
+Fasole in sos|18
+Fidea de casa|19
+Hrisca cu ciuperci|21
+Legume la cuptor|23
+Mamaliga in straturi cu carne|17
+Orez cu varza|18
+Paste cu sos alb|19
+Piure de cartofi (P)|16
+Tocanita din cartofi cu smintina|21
+Ursulet din mamaliga|18
+Aripioare de pui la cuptor|26
+Biftec Delicios|29
+Biftec din pui/porc cu cascaval|25
+Biftec din pui/porc cu ou|25
+Chiftelute de pui in sos alb|22
+Chiftelute de pui in sos rosu|22
+Cirnaciori Deliciosi|25
+Cirnaciori de casa|25
+Costita de porc prajita|35
+Crenvursti fierti|25
+Crenvursti prajiti|25
+File de mintai panat|30
+Mici de casa|27
+Mici din carne de vita/porc|27
+Mintai la cuptor|24
+Papanasi de pui|28
+Papanasi de pui cu castraveti|28
+Pipote de pui cu legume|22
+Pipote de pui in sos alb|22
+Pulpa de pui la rola|28
+Safalade de casa|25
+Tocanita din carne de purcel|35
+Zraza din carne de pui|25
+Zraza din carne de pui si porc cu ciuperci|26
+Ardei marinati|18
+Branza cu smantina|16
+Icra de vinete|15
+Pepene rosu marinat|16
+Racitura de pui|24
+Salata Iceberg|18
+Salata Spaniola|14
+Salata Vitamin|14
+Salata Vitamin cu varza rosie|17
+Salata cu piept de pui afumat|18
+Salata din crabi si morcov coreian|18
+Salata din piept de pui|20
+Salata din varza cu legume|14
+Salata limba soacrei|16
+Sampinioane marinate|18
+Paine cu cereale|14
+Pilaf azer cu carne vita|24
+Cotlet copt din carne de porc cu costita (T-bone)|39
+Sarmale cu frunza de vie (Долма)|30
+Paine impletita|12
+Sold de pui in sos de rosii (Чыхыртма)|28
+Colac|8
+Salata din crabi si legume|18
+Mimoza cu peste|17
+Prajitura Inghetata|25
+Muffin cu ciocolata|12
+Paine cu seminte de casa|3
+Conopida marinata|16
+File de pui AFUMAT|826.45
+Legume sotate MB|44
+Frigarui din carne de pui MM|74
+Prajitura Choco-cake|29.5
+Frigarui din carne de purcel MM|78
+Prajitura Ecler-snickers|23.5
+Prajitura Tartalete cu visina|16.5
+Piept de purcel afumat|32
+Pulpa de pui afumata|28
+Zeama cu taietei de casa|21
+Paine cu tarita de casa 7|3
+Paine alba de casa 8|3
+Paine cu tarita de casa 8|3
+Chiftelute de vita/porc in sos rosu|35
+Chiftelute de vita/porc in sos alb|35
+Mustar|7
+Biftec din vita/porc cu ou|32
+Biftec din vita/porc cu cascaval|32
+Chiftelute de pui/porc in sos rosu|26
+Chiftelute de pui/porc in sos alb|26
+Pirjoala din carne de pui MM|28
+Pirjoala din carne de pui|28
+Pirjoala din carne de pui/porc|28
+Pirjoala din carne de vita/porc|28
+Hrisca cu legume|15
+Tocatura porc/vita pentru mici MM|120
+Soleanca|24
+Mamaliga|14
+Cartofi copti cu ciuperci|24
+Cartofi copti cu file afumat|23
+Paste cu ciuperci|25
+Terci din arpacas|16
+Terci din griu|16
+Terci din hrisca|16
+Hec cu legume|28
+Salata din ridichie rosie cu ou|18
+Piftie (racitura) din carne de porc|26
+Salata din fructe|24
+Salata din sampinioane|18
+Prajitura Napoleon|25
+Fasole cu carne afumata|26
+Piure din mazare|16
+Ceai cu MERISOARE MM|16
+Biftec din vita/porc cu cascaval Hochland|32
+Tocatura pui pentru cirnateii MM kg|125
+Peste cu legume|34
+Rulada de pui cu bacon|36
+Orez cu ciuperci|22
+Salata din varza murata|18
+Muffin cu stafide|12
+Cozonac Moldovenesc 0.2|25
+Croissant cu UNT|18
+Croissant cu SPANAC SI BRANZA|18
+Croissant cu MIGDALE|18
+Croissant cu MERE|18
+Croissant cu CREMA|18
+Croissant cu CARAMELA SARATA|18
+Croissant cu CAISE|18
+Sos usturoi cu nuca|5
+Branza|6
+Salata Greceasca MM|42
+Salata Orientala mix MB|45
+Salata din rosii si castraveti MB|38
+Legume la gratar MM|58
+Legume la gril MB|58
+Vinata evantai MB|52
+Salata din dovlecei|18
+Paine alba de casa 7|3
+Bruschete cu avocado MM|28
+Bruschete cu prosciutto crudo MM|30
+Bruschete cu somon MM|36
+Rulada de pui cu bacon MM|56
+Ciorba cu sfecla rosie si carne MM|48
+Cozonac Moldovenesc 1|75
+Crap prajit|35
+Zeama cu carne de pui MB|44
+Aripioare de pui afumate|26
+Gazpacho cu ardei gras si castraveti|34
+Chiftelute din carne de porc in sos de rosii|31
+Peste la cuptor|26
+Salata din varza marinata|16
+Salata din morcov coreean|14
+Sold de pui la cuptor|25
+Salata din vinata|16
+Salata din vinata cu adjica|16
+Legume sotate cu sos balzamic|26
+Salata din lolo cu spanac|25
+Peste umplut|32
+Salata din varza pekin si ridiche rosie|17
+Smintina|5
+Supa de conopida|21
+Piure din fasole|16
+Piftie (racitura) din carne de porc 2|24
+Ardei umpluti cu carne|26
+Pizza cu salam|0
+Cighiri de casa|25
+Porc la cuptor cu ierburi mediteraniene|48
+Ceafa de purcel la cuptor in sos alb|35
+Ciorba de crap|25
+Pita Greceasca|7
+Sos Tzatziki|8
+Saganaki cu fructe de mare Grecesc|38
+Salata din rosii si castraveti cu salata lolo|19
+File delicios cu Dor Bleu|38
+Scrob din ou|22
+Salata din dovlecei cu brinza|18
+Sos pentru pizza|0
+Briosa cu ciocolata|14
+Pizza Capricioasa|50
+Croissant cu Vanilie ( 60gr)|12
+Peste la cuptor MACROU|26
+Cozonac Leberkase|27
+Ficat de vitel la grill|22
+Jambon Bavarez|40
+Burger CARBON MM|35
+Salata din alge marine|25
+Ciorba de iepure cu tarhon|28
+Sardine in stil grecesc|40
+Salata Bavareza|22
+Supa greceasca de pui cu orez|26
+Mini placinta cu cartofi|6
+Gamba de pui afumat|24
+Fidea de casa cu ciuperci|21
+Chiftelute de peste in sos rosu|26
+Salata din varza, verzi crocanti|16
+Sardine cu lamaie|35
+Piure din naut|16
+Hering cu mazare|20
+Tocanita din ardei|24
+Pizza Capricioasa 1/2|25
+Zraza din carne de pui si porc|25
+Ardei umpluti cu verzi crocanti|18
+Nr4 - Mic dejun vegetarian|55
+Ardei umpluti cu verzi crocanti MM kg|180
+Cighiri de casa MM kg|180
+Cirnaciori de pui MM kg|180
+Cozonac Leberkase MM kg|200
+Jambon Bavarez MM kg|300
+Legume sotate MM kg|240
+Mici de casa vita&porc M&M kg|200
+Pirjoala din carne de pui/porc MM kg|200
+Zraza din carne de pui si porc MM kg|200
+Ceafa de purcel pregatita in stil Bavarez MM kg|380
+Nr2 - Mic dejun englezesc|60
+Nr1 - Mic dejun Scrob cu jambon|60
+Vinata coapta cu brinza feta|42
+Aluat pentru pizza|0
+Ficat de pui in sos rosu|22
+Ficat de pui in sos alb|22
+Salata din varza pekin si castraveti|16
+Covrig cu VANILIE|18
+Sarmale de post MM|200
+Ceai cu LIME si MENTA MM|16
+Salata din varza cu dressing din maioneza|14
+Cafea Espresso ARABICA|10
+Cafea Espresso ROBUSTA|8
+Nughete din fileu de pui|26
+Fidea de casa cu ciuperci in sos alb|23
+Salata Juravusca|20
+Salata cu file de pui si varza pekin|20
+Salata Greceasca|18
+Salata din varza pekin si rosii|16
+Paste cu unt|19
+Orzo in sos de rosii cu carne Giouvetsi|28
+Cirnaciori porc/vita afumati MM|35
+Snitel Vienez MM|75
+Ceai MM|10
+File de pastrav copt cu lamaie|38
+Fructe de mare in sos|42
+Salata cu ton|25
+Cartofi AL FORNO|25
+Ceafa de porc cu sos de frisca|36
+Sfecla rosie in stil georgian|17
+Khinkali vita, porc|40
+Cafea Americano ARABICA MM|14
+Cafea Espresso ARABICA MM|12
+Burger cu carne de pui MM|35
+Lobio cu fasole rosii|28
+Clatite cu brinza|16
+Cartofi copti cu marar|21
+Cartofi fierti cu ciuperci|21
+Cartofi scazuti cu legume|19
+Supa cu cartof si fasole|19
+Salata verde cu rucola si boabe de fasole MM|55
+Ceai cu ZMEURA MM|16
+Salata din sfecla rosie cu maioneza|12
+Carnita de pui prajita|27
+Crevete in sos mediterianeo|38
+Tocana din iepure cu ciuperci|42
+Somon marinat|52
+Ceafa de purcel pregatita in stil Bavarez|46
+Fidea de casa in sos alb|19
+Placinta cu visina (P)|16
+Cornisor cu Gem de MAR|18
+Cartofi fierti cu marar|21
+Sandwich cu sunca|30
+Sandwich cu CASCAVAL MM|30
+Sandwich cu carne de pui afumata MM|30
+Sandwich cu double meat MM|30
+Chifla pentru BURGHER|0
+Sarmale de post|25
+Terci din griu cu legume|16
+Salata Suba|18
+Salata Vinigret|14
+Salata Olivie|17
+Compot de fructe|5
+Supa crema din ciuperci|28
+Prune cu migdale|24
+Baba neagra MM kg|130
+Pasca Traditionala|70
+Ceai cu CATINA MM|16
+Salata Caesar|20
+Cartofi Dushes|27
+File de pui in stil francez|38
+Rulada cu Caramela sarata si Nuci|18
+Cozonac Moldovenesc 550 DRAX|55
+Rulada de cozonac cu ciocolata|100
+Rulada de cozonac cu visina|100
+Supa germana de cartofi cu cirnaciori|22
+Rulada de cozonac cu mac|100
+Rulada de cozonac cu crema rafaelo|100
+Salata din ridichie|18
+Salata din rosii si castraveti|19
+Paste cu sos fin de rosii|19
+Supa cu linte|18
+Cafea Capucino ARABICA MM|16
+Cafea Americano ROBUSTA MM|14
+Cafea Latte ARABICA MM|16
+Cornisor cu CIOCOLATA|20
+Cozonac Moldovenesc 550|65
+Supa de peste|21
+Salata din rosii si castraveti, oriental mix|19
+File de pui copt cu ciuperci MM|200
+Batuta de carne de pui MM|200
+Ciorba cu varza si cartof|22
+Ciorba cu varza si costite de purcel|28
+Supa cu cartof si ciuperci|25
+Rasolnic cu pesmeti|22
+Ciorba cu varza murata si carne de purcel|28
+Ocrosca|27
+Supa de cartofi cu chiftelute|24
+Pilaf cu carne de pui|22
+Pelmeni|26
+Paste cu sos alb si ciuperci|24
+Paste cu cascaval|25
+Carnita de purcel copt in sos|34
+Carnita de purcel in sos alb|34
+Carnita de purcel la cuptor|34
+File de pui copt cu cascaval|32
+File de pui la cuptor|32
+Fileu de pui afumata|32
+Fileu de pui copt|32
+Fileu de pui copt in sos alb|29
+Fileu de pui copt in sos rosu|29
+Fileu de pui panat copt|29
+Piept de rata in sos fin de visine|42
+Oua fierte cu maioneza|18
+Pirjoala cu ardei si sos bechamel|34
+Biftec din vita/porc|28
+Papricas din pui|28
+Salata din legume ciolamada|18
+Foietaj cu CAPSUNA MG|18
+Rulada de cozonac cu crema de fistic|100
+Rulada de cozonac cu crema de fistic si zmeura|100
+Cartofi copti cu pastari|21
+Supa cu orez|18
+Salata orientala mix|24
+Snitel Vienez MM|200
+Croissant cu CIOCOLATA MG|18
+Pulpa de pui prajita|36
+Placinta cu dovleac (P)|16
+Varza inabusita|19
+Clatite cu brinza si stafide|20
+Pui la cuptor|99
+Inimioare de pui in sos alb|22
+Inimioare de pui in sos rosu|22
+Fasole cu ceapa verde|16
+Gulas de carne de purcel|30
+Salata verde cu file de pui afumat|24
+Orez cu legume|20
+Mici de casa din carne de pui MM|27
+Cirnaciori Deliciosi din carne de pui/porc MM|25
+Terci din arpacas cu legume|16
+Ciorba cu varza si carne de vitel|28
+Ciorba din sfecla rosie|20
+Rasolnic cu carne de purcel afumata|26
+Batuta de carne de porc|27
+Snitel Vienez|33
+Ceafa de purcel la cuptor|35
+Salata Caesar cu piept de pui|24
+Salata din ardei si morcov coreean cu file de pui|24
+Gulas de carne de vita|35
+Ciorba cu varza si fasole|22
+Cartofi copti cu legume|21
+Bors scazut cu varza murata si carne de purcel|32
+Supa cu mazare si carne afumata|24
+Supa cu mazare si salam cabanos|24
+Supa cu mazare si salam vanatoresc|24
+Adjapsandal din legume|28
+Ciahohbili din carne de pui|34
+Salata lobio cu fasole|20
+Cartofi noi in sos de paprika|22
+Gulas de Szeged|34
+Paste cu branza si jumari de porc|26
+Risotto cu ciuperci|27
+Paste cu sos Alfredo Carnivore|24
+Salata caprese|25
+Orez in stil catalan|22
+Salata din vinata cu brinza|24
+Iepure la cuptor cu usturoi|49
+Salata din ridiche cu ou (Бахар)|20
+Salata din rosii si castraveti (по шекински)|20
+Biftec din pui/porc|25
+Ciorba cu varza murata|24
+Mici de casa vita/porc MM|32
+Cartofi fierti cu pastari|19
+Piure de cartofi|16
+Cartofi piure cu usturoi Skordalia|22
+Sandwich cu sunca MM|30
+Clatite Tiramisu|24
+Omleta cu legume|28
+Rulada cu MAC|18
+Friptura de porc in sos picant|45
+Chiftele Albondigas in sos de rosii|31
+Salata mexicana cu porumb si fasole|20
+Nachos picanti|18
+Sos BURGER MM|5
+Cafea Capucino ROBUSTA MM|16
+Cafea Latte ROBUSTA MM|16
+Supa din rata cu legume|28
+Paste cu sos carbonara|24
+Frigarui din ceafa de purcel|39
+Baba alba|20
+Supa cu fidea de casa si ciuperci|25
+Muschiulet rustic cu prune|39
+Terci din bulgur cu legume|16
+Terci din hrisca cu legume|16
+Salata din varza "Mexican Coleslaw"|18
+Ice Latte ROBUSTA|30
+Clatite cu cortoafe|16
+Cafea Espresso ROBUSTA MM|12
+Desert Churros cu sos de ciocolata|16
+Cartofi Papas cu ardei dulce|26
+Fajita cu ceapa si ardei|36
+Tocanita din legume|24
+Tocanita din file de pui|34
+Gamba de pui la cuptor|24
+Ciorba cu varza si carne de purcel|28
+Salata din castraveti marinati|18
+Sos Tar-Tar|5
+Ocrosca fara ridiche|27
+Salata Cezar cu creveti|29
+Salata din crabi|22
+Compot de visine|7
+Baba neagra|15
+LIMONADA ORANGE|30
+LIMONADA ORANGE M M|30
+Cartofi copti la cuptor|19
+Cotlet de porc afumat|35
+Cotlet de purcel copt|35
+Salata din varza pekin|16
+LIMONADA LIME M M|30
+Cartofi noi cu verdeata|25
+Naut in sos cu rosii|19
+Fasole in sos de rosii|18
+Ciorba radautana|28
+Ciorba cu fasole|18
+Paste cu branza|21
+Salata verde cu mozzarella si rosii ceri|28
+Dovlecel cu carne de porc|35
+Pilaf cu carne de purcel|26
+Pulpa de pui dezosata prajita|28
+Nr3 - Terci de ovas integral cu fructe|50
+Jeleu in culori|18
+Orez cu legume mexicane|28
+Cartofi copti cu sos aioli|24
+Mazare verde in stil francez|28
+Gratin din cartofi|26
+Croque_PURCEL|30
+Peste copt cu ierburi franceze|40
+Fricasse de pui|30
+Ratatui din legume|25
+Salata Nisuaz|18
+Salata din morcov cu mere|16
+Platou legume|180
+Supa crema din ciuperci cu carne de pui|32
+PAHAR GHEATA|12
+Ice Latte ROBUSTA MM|30
+Ficat in stil francez|28
+Ficat de pui cu legume|22
+Perkelt din rata|42
+Zeama cu carne de pui|21
+Supa de pui cu cascaval topit|26
+Supa italiana de legume|24
+Ciorba din sfecla rosie cu carne de vita|26
+Rasolnic cu carne purcel afumata MM|26
+Tocanita de pui|32
+Supa harcio|24
+Fasole mexicane cu legume|32
+Toсhitura dobrojana|36
+Soleanca cu file de pui afumata|26
+Mamaliga cu unt|14
+Supa crema din linte cu usturoi|24
+Suc la pahar|8
+Salata din varza|14
+Salata din varza cu castraveti|14
+Salata din varza cu ridichie|18
+Ciorba cu varza si carne de rata|28
+Salata din varza rosie|14
+File de pui copt cu ciuperci|32
+Pilaf francez|22
+Gamba de pui in vin cu usturoi|34
+Burger CLASSIC MM|35
+Salata din varza cu rosii|14
+Salata bulgareasca din legume si brinza|18
+Batuta de carne de pui|27
+Ragu din legume|22
+File de curcan cu lamaie|48
+Salata iceberg, oriental mix|19
+LIMONADA LIME|30
+Sarmale cu carne|28
+Sandwich cu bacon MM|30
+Sandwich cu servelat extra MM|30
+Croque_PUI|30
+Ciocolata fierbinte MM|18
+Crumble din mere proaspete|22
+Chifla inimioara cu SCORTISOARA|20
+Hot-Dog MM|25
+Supa mexicana cu fasole si carne de pui|28
+Salata verde cu rucola si boabe de fasole|25
+Quesadilla cu carne de pui|42
+Para caramelizata|25
+Supa crema din legume Province|26
+Frigarui de pui Souvlaki|35
+Cafea Espresso Macchiato ROBUSTA MM|14
+Salata Orientala|18
+Placinta cu branza de vaci MILINA|16
+Placinta cu carne MILINA|18
+Placinta cu varza MILINA|16
+Placinta cu branza de vaci|15
+Placinta cu branza de vaci (P)|15
+Placinta cu cartofa (P)|15
+Placinta cu cartofi|15
+Placinta cu varza|15
+Placinta cu varza (P)|15
+Placinta cu visina|18
+Placinta cu branza de vaci si marar|16
+Placinta cu MAR|16
+Placinta cu MAR (P)|16
+Chifla cu CAPSUNA|18
+Chifla cu CIOCOLATA|18
+Chifla cu COACAZA NEAGRA|18
+Chifla cu Caise|18
+Chifla cu FRUCTE DE PADURE|18
+Chifla cu MAC|18
+Chifla cu MERE|18
+Chifla cu PIERSIC|18
+Chifla cu SCORTISOARA|18
+Chifla cu STAFIDE|18
+Chifla cu VANILIE|18
+Chifla cu VISINA|18
+Chifla cu ZMEURA|18
+Melc cu MAC|18
+Crenvusca in aluat MM|24
+Crenvusca in aluat|24

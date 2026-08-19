@@ -1,7 +1,8 @@
 /* ============================================================================
  *  Production reset — wipe all demo/seed data, keep only what a real launch needs.
  *  ----------------------------------------------------------------------------
- *  KEEPS:   the admin account, app settings, and the permanent products
+ *  KEEPS:   the admin account, app settings, the product price list (products —
+ *           reference data, re-seeded if empty), and the permanent products
  *           (stable_items — the real "Bucate la comandă" catalogue). If the
  *           permanent-products table is empty (e.g. a fresh Railway volume), the
  *           default catalogue is seeded so the site is never left without it.
@@ -22,6 +23,7 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { seedStableDefaults } from "./stable-defaults.mjs";
+import { seedProductsIfEmpty } from "./products-catalog.mjs";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const dataDir = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(root, "data");
@@ -64,6 +66,11 @@ const tx = db.transaction(() => {
     if (seeded.inserted) console.log(`Seeded ${seeded.inserted} default permanent products.`);
   }
 
+  // The price-list catalogue is reference data, never demo data — always kept,
+  // and seeded when the table is empty (e.g. a fresh volume).
+  const catalog = seedProductsIfEmpty(db, root);
+  if (catalog.inserted) console.log(`Seeded ${catalog.inserted} catalogue products (price list).`);
+
   // Ensure exactly one admin exists and is phone-verified.
   const admin = db.prepare("SELECT id FROM users WHERE role = 'admin' ORDER BY id LIMIT 1").get();
   if (ADMIN_PASSWORD) {
@@ -100,6 +107,7 @@ const counts = {
   menus: db.prepare("SELECT COUNT(*) c FROM menus").get().c,
   news: db.prepare("SELECT COUNT(*) c FROM news_posts").get().c,
   stable_items: db.prepare("SELECT COUNT(*) c FROM stable_items").get().c,
+  products: db.prepare("SELECT COUNT(*) c FROM products").get().c,
 };
 console.log("✓ Production reset complete.");
 console.table(counts);

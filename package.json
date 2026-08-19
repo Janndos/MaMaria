@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "next lint",
     "seed": "node scripts/seed.mjs",
+    "seed:products": "node scripts/seed-products.mjs",
     "prod:reset": "node scripts/prod-reset.mjs"
   },
   "dependencies": {

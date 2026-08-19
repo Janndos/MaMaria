@@ -93,3 +93,11 @@ CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
+-- Product price list ("Lista de prețuri") — reference catalogue used by the
+-- manual menu builder. No UNIQUE on name: the same dish can appear at two prices.
+CREATE TABLE IF NOT EXISTS products (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  price NUMERIC(10,2) NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);

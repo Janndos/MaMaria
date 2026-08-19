@@ -3,11 +3,22 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Badge, Button, Card, Field, Input, Spinner } from "@/components/ui";
 import { useToast } from "@/components/providers";
+import { CatalogPicker, CatalogProduct } from "./catalog-picker";
 
-type Row = { category: string; name: string; grams: string; priceMdl: string; warnings: string[] };
+type Row = {
+  category: string; name: string; grams: string; priceMdl: string; warnings: string[];
+  /** Added from the price list, which carries no category/gram weight — those two
+   *  fields must be completed by hand before the menu can be published. */
+  fromCatalog?: boolean;
+};
 
 function todayISO() { return new Date().toISOString().slice(0, 10); }
 const emptyRow = (): Row => ({ category: "", name: "", grams: "", priceMdl: "", warnings: [] });
+
+/** A catalogue row still missing what the catalogue cannot supply. */
+function needsCompletion(r: Row) {
+  return !!r.fromCatalog && (!r.category.trim() || !(Number(r.grams) > 0));
+}
 
 export default function AdminUploadPage() {
   const toast = useToast();
@@ -18,6 +29,7 @@ export default function AdminUploadPage() {
   const [date, setDate] = useState(todayISO());
   const [parsing, setParsing] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   async function parseFile() {
     const file = fileRef.current?.files?.[0];
@@ -55,11 +67,39 @@ export default function AdminUploadPage() {
   }
   function startEmpty() {
     setErrors([]);
-    setRows([emptyRow()]);
+    setRows((prev) => (prev?.length ? prev : [emptyRow()]));
+  }
+
+  /** Open the price-list picker, creating the table first if we're starting cold. */
+  function openPicker() {
+    setErrors([]);
+    setRows((prev) => prev ?? []);
+    setPickerOpen(true);
+  }
+
+  /** Products chosen from the price list arrive with name + price only. Category
+   *  and gram weight stay blank on purpose — the catalogue does not store them. */
+  function addFromCatalog(products: CatalogProduct[]) {
+    setRows((prev) => [
+      ...(prev ?? []),
+      ...products.map((p) => ({
+        category: "", name: p.name, grams: "",
+        priceMdl: String(p.price), warnings: [], fromCatalog: true,
+      })),
+    ]);
+    toast.push(
+      products.length === 1
+        ? `„${products[0].name}" adăugat — completează categoria și gramajul.`
+        : `${products.length} produse adăugate — completează categoria și gramajul.`,
+    );
   }
 
   async function publish(asDraft: boolean) {
     if (!rows?.length) { toast.push("Adaugă cel puțin un produs.", "error"); return; }
+    if (rows.some(needsCompletion)) {
+      toast.push("Completează categoria și gramajul pentru produsele luate din catalog.", "error");
+      return;
+    }
     for (const r of rows) {
       if (!r.name.trim() || !(Number(r.grams) > 0) || !(Number(r.priceMdl) > 0)) {
         toast.push("Completați denumirea, gramajul și prețul pentru fiecare rând.", "error");
@@ -109,10 +149,25 @@ export default function AdminUploadPage() {
           </Field>
           <Button onClick={parseFile} disabled={parsing}>{parsing ? "Se analizează..." : "Analizează fișierul"}</Button>
         </div>
-        <p className="mt-3 text-xs text-slate-500">
-          Preferi să introduci meniul manual, fără fișier?{" "}
-          <button onClick={startEmpty} className="font-semibold text-brand-600 underline">Începe cu un tabel gol</button>.
+      </Card>
+
+      {/* Manual builder — the alternative to the Excel file. */}
+      <Card className="p-5">
+        <h2 className="font-display text-lg font-bold text-brand-800">Creează-l singur!</h2>
+        <p className="mt-1 text-sm text-slate-600">
+          Nu ai fișier Excel? Construiește meniul direct aici. Poți scrie fiecare produs de la zero
+          (categorie, denumire, gramaj, preț) sau îl poți lua din{" "}
+          <span className="font-semibold">catalogul de prețuri</span> al bucătăriei.
         </p>
+        <p className="mt-2 rounded-xl bg-brand-50 px-4 py-3 text-sm text-brand-800">
+          Catalogul reține doar <span className="font-semibold">denumirea și prețul</span>. Categoria și
+          gramajul nu sunt stocate acolo, așa că le completezi tu după ce alegi produsul — rândurile
+          neterminate rămân marcate cu galben și nu pot fi publicate.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Button onClick={openPicker}>🔎 Alege din catalogul de prețuri</Button>
+          <Button variant="outline" onClick={startEmpty}>✎ Începe cu un tabel gol</Button>
+        </div>
       </Card>
 
       {parsing && <Spinner label="Se citește fișierul..." />}
@@ -138,29 +193,56 @@ export default function AdminUploadPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-brand-100">
-                {rows.map((r, i) => (
-                  <tr key={i} className={r.warnings.length ? "bg-amber-50/60" : ""}>
-                    <td className="px-4 py-2"><Input value={r.category} onChange={(e) => update(i, { category: e.target.value })} placeholder="Categorie" className="!py-1.5" /></td>
+                {rows.map((r, i) => {
+                  const todo = needsCompletion(r);
+                  return (
+                  <tr key={i} className={r.warnings.length || todo ? "bg-amber-50/60" : ""}>
+                    <td className="px-4 py-2">
+                      <Input value={r.category} onChange={(e) => update(i, { category: e.target.value })}
+                        placeholder="Categorie" className={`!py-1.5 ${todo && !r.category.trim() ? "!border-amber-400" : ""}`} />
+                    </td>
                     <td className="px-4 py-2">
                       <Input value={r.name} onChange={(e) => update(i, { name: e.target.value })} placeholder="Denumire produs" className="!py-1.5" />
                       {r.warnings.length > 0 && <span className="mt-1 inline-block"><Badge tone="gold">{r.warnings.join(", ")}</Badge></span>}
+                      {todo && (
+                        <span className="mt-1 inline-block">
+                          <Badge tone="gold">din catalog — completează categoria și gramajul</Badge>
+                        </span>
+                      )}
                     </td>
-                    <td className="px-4 py-2 w-24"><Input value={r.grams} inputMode="numeric" onChange={(e) => update(i, { grams: e.target.value })} placeholder="g" className="!py-1.5" /></td>
+                    <td className="px-4 py-2 w-24">
+                      <Input value={r.grams} inputMode="numeric" onChange={(e) => update(i, { grams: e.target.value })}
+                        placeholder="g" className={`!py-1.5 ${todo && !(Number(r.grams) > 0) ? "!border-amber-400" : ""}`} />
+                    </td>
                     <td className="px-4 py-2 w-24"><Input value={r.priceMdl} inputMode="decimal" onChange={(e) => update(i, { priceMdl: e.target.value })} placeholder="MDL" className="!py-1.5" /></td>
                     <td className="px-4 py-2 text-right">
                       <button onClick={() => removeRow(i)} className="text-sm font-semibold text-red-600 hover:underline">Elimină</button>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
                 {rows.length === 0 && (
-                  <tr><td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-500">Niciun rând — adaugă primul produs.</td></tr>
+                  <tr><td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-500">Niciun rând — adaugă primul produs sau alege din catalog.</td></tr>
                 )}
               </tbody>
             </table>
-            <div className="border-t border-brand-100 p-3">
+            <div className="flex flex-wrap gap-2 border-t border-brand-100 p-3">
               <Button small variant="outline" onClick={addRow}>+ Adaugă un rând</Button>
+              <Button small variant="outline" onClick={openPicker}>🔎 Alege din catalog</Button>
             </div>
           </Card>
+
+          {rows.some(needsCompletion) && (
+            <div className="rounded-card bg-amber-50 px-5 py-4">
+              <p className="text-sm font-bold text-amber-900">
+                {rows.filter(needsCompletion).length} produs(e) din catalog au nevoie de categorie și gramaj
+              </p>
+              <p className="mt-0.5 text-sm text-amber-800">
+                Catalogul de prețuri nu stochează aceste două câmpuri. Completează-le în rândurile
+                marcate cu galben, apoi publică meniul.
+              </p>
+            </div>
+          )}
 
           <div className="flex flex-wrap gap-3">
             <Button onClick={() => publish(false)} disabled={publishing}>
@@ -174,6 +256,8 @@ export default function AdminUploadPage() {
           </p>
         </>
       )}
+
+      <CatalogPicker open={pickerOpen} onClose={() => setPickerOpen(false)} onAdd={addFromCatalog} />
     </div>
   );
 }
