@@ -145,6 +145,15 @@ export function CatalogPicker({
           <p className="px-4 py-6 text-center text-sm text-red-600">
             Catalogul nu a putut fi încărcat. Închide și încearcă din nou.
           </p>
+        ) : all.length === 0 ? (
+          <p className="px-4 py-6 text-center text-sm text-amber-800">
+            Catalogul de prețuri este gol pe acest server.
+            <br />
+            <span className="text-slate-500">
+              Se completează automat la repornirea aplicației; dacă persistă, rulează
+              <span className="font-mono"> npm run seed:products</span>.
+            </span>
+          </p>
         ) : results.length === 0 ? (
           <div className="px-4 py-6 text-center">
             <p className="text-sm text-slate-500">Niciun produs care să semene cu „{q}".</p>

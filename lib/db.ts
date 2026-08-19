@@ -16,6 +16,68 @@ function backfillStableDescriptions(database: DatabaseType): void {
   } catch { /* table may not exist yet during a partial init — safe to skip */ }
 }
 
+/** Locate the product price list that ships with the app. Read from disk (rather
+ *  than bundled) so the catalogue stays a plain, diffable text file; the same
+ *  cwd-relative mechanism already serves public/fonts and public/logo.png in
+ *  production. An env override is provided for unusual deployments. */
+function readProductCatalogFile(): [string, number][] {
+  const candidates = [
+    process.env.PRODUCTS_CATALOG_PATH,
+    path.join(process.cwd(), "scripts", "products-data.txt"),
+  ].filter(Boolean) as string[];
+
+  for (const file of candidates) {
+    try {
+      if (!fs.existsSync(file)) continue;
+      const rows: [string, number][] = [];
+      for (const line of fs.readFileSync(file, "utf-8").split(/\r?\n/)) {
+        const text = line.trim();
+        if (!text || text.startsWith("#")) continue;
+        const sep = text.lastIndexOf("|");
+        if (sep === -1) continue;
+        const name = text.slice(0, sep).trim();
+        const price = Number(text.slice(sep + 1).trim());
+        if (name && Number.isFinite(price) && price >= 0) rows.push([name, price]);
+      }
+      if (rows.length) return rows;
+    } catch { /* try the next candidate */ }
+  }
+  return [];
+}
+
+/** Populate the price list on a database that has never been seeded — a fresh
+ *  Railway volume, for instance. Without this the table exists but is empty, and
+ *  the admin's "Alege din catalogul de prețuri" picker opens onto nothing, because
+ *  nothing runs scripts/seed-products.mjs on a deploy. Idempotent: only ever fills
+ *  an EMPTY table, so admin edits and re-seeds are never clobbered. */
+function seedProductsIfEmpty(database: DatabaseType): void {
+  try {
+    const { c } = database.prepare("SELECT COUNT(*) c FROM products").get() as { c: number };
+    if (c > 0) return;
+
+    const rows = readProductCatalogFile();
+    if (!rows.length) {
+      console.error(
+        "[products] catalogue file not found or empty (expected scripts/products-data.txt) — " +
+          "the price list will be empty until `npm run seed:products` is run.",
+      );
+      return;
+    }
+    database.transaction(() => {
+      // Batched multi-row INSERTs (2 bound params each) stay under SQLite's limit.
+      for (let i = 0; i < rows.length; i += 300) {
+        const chunk = rows.slice(i, i + 300);
+        database
+          .prepare(`INSERT INTO products (name, price) VALUES ${chunk.map(() => "(?,?)").join(",")}`)
+          .run(...chunk.flat());
+      }
+    })();
+    console.log(`[products] seeded ${rows.length} catalogue products into an empty price list.`);
+  } catch (e) {
+    console.error("[products] auto-seed failed:", e);
+  }
+}
+
 /** Older DBs created the users table with `CHECK (role IN ('customer','admin'))`,
  *  which rejects the "tehno" role and makes promoting a user fail with a 500.
  *  SQLite can't ALTER a CHECK, so rebuild the table once (data preserved). */
@@ -217,6 +279,7 @@ CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
   addColumn("news_posts", "video_url", "TEXT");
   migrateUserRoleCheck(database);
   backfillStableDescriptions(database);
+  seedProductsIfEmpty(database);
 
   return database;
 }
