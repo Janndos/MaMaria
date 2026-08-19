@@ -1,5 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Badge, Button, Card, Field, Input, Spinner } from "@/components/ui";
 import { useToast } from "@/components/providers";
@@ -168,6 +169,11 @@ export default function AdminUploadPage() {
           <Button onClick={openPicker}>🔎 Alege din catalogul de prețuri</Button>
           <Button variant="outline" onClick={startEmpty}>✎ Începe cu un tabel gol</Button>
         </div>
+        <p className="mt-3 text-xs text-slate-500">
+          După salvare poți genera imaginea și PDF-ul A4 al meniului (pentru printare sau Telegram)
+          din <Link href="/gestiune/noutati" className="font-semibold text-brand-600 underline">Noutăți</Link>
+          {" "}→ „Generează meniul" → „Din meniul salvat".
+        </p>
       </Card>
 
       {parsing && <Spinner label="Se citește fișierul..." />}

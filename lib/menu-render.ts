@@ -32,11 +32,23 @@ const TABLE_R = W - M;        // 956
 const COL_NUM_R = 112;        // № column right edge
 const COL_NAME_R = 728;       // Denumire right edge
 const COL_GRAMS_R = 828;      // Masa/gr right edge  (price = COL_GRAMS_R..TABLE_R)
-const HEADER_H = 78;
-const ROW_H = 46;
-const NAME_LINE_H = 27;             // line height when a product name wraps
+const HEADER_H = 72;
+const ROW_H = 42;
+const NAME_LINE_H = 25;             // line height when a product name wraps
 const NAME_X = COL_NUM_R + 12;      // left edge of the Denumire text
 const NAME_MAX_W = COL_NAME_R - NAME_X - 10; // usable width for the name column
+const BOTTOM_M = 40;                // white space under the table
+
+/* ---- A4 fitting --------------------------------------------------------------
+ * The sheet is printed as well as posted to Telegram, so the canvas is kept at the
+ * exact A4 aspect ratio: a menu shorter than a page is padded with white to A4,
+ * and a menu longer than a page has its row heights squeezed (down to a readable
+ * floor) to pull it back onto one page. Anything that still overflows after the
+ * squeeze keeps its natural height and is scaled to fit by pngToPdf. */
+const A4_RATIO = 297 / 210;               // portrait A4
+const A4_H = Math.round(W * A4_RATIO);    // 1414 design units at W = 1000
+const MIN_ROW_H = 34;                     // never squeeze a text row below this
+const MIN_SPACER_H = 18;                  // blank separator rows may go smaller
 
 /** Escape for SVG text — accepts anything and never throws on null/undefined. */
 function esc(s: unknown): string {
@@ -119,34 +131,55 @@ export function buildMenuSvg(meta: MenuMeta, groups: Group[]): { svg: string; wi
   const parts: string[] = [];
 
   // --- header block geometry ---
-  const logoW = 250, logoH = 150, logoY = 44;
-  const titleY = logoY + logoH + 58;           // "MENIU" baseline
-  const subtitleY = titleY + 46;               // weekday + date baseline
-  const line1Y = logoY + logoH + 16;
-  const line2Y = subtitleY + 26;
-  const tableTop = line2Y + 34;
+  const logoW = 250, logoH = 130, logoY = 36;
+  const titleY = logoY + logoH + 52;           // "MENIU" baseline
+  const subtitleY = titleY + 42;               // weekday + date baseline
+  const line1Y = logoY + logoH + 14;
+  const line2Y = subtitleY + 24;
+  const tableTop = line2Y + 30;
 
   // --- build render rows (category header + items + trailing spacer) ---
-  // Each row carries its own height so long, wrapped product names get extra space.
-  type RRow = { kind: "cat" | "item" | "spacer"; item?: ParsedItem; category?: string; nameLines?: string[]; height: number };
+  // Each row carries its own height so long, wrapped product names get extra
+  // space, plus the floor it may never be squeezed below when fitting to A4.
+  type RRow = {
+    kind: "cat" | "item" | "spacer"; item?: ParsedItem; category?: string;
+    nameLines?: string[]; height: number; minH: number;
+  };
   const rrows: RRow[] = [];
   groups.forEach((g) => {
-    rrows.push({ kind: "cat", category: g.category, height: ROW_H });
+    rrows.push({ kind: "cat", category: g.category, height: ROW_H, minH: MIN_ROW_H });
     g.items.forEach((it) => {
       const nameLines = wrapName(it.name, 20);
       const height = Math.max(ROW_H, nameLines.length * NAME_LINE_H + 16);
-      rrows.push({ kind: "item", item: it, nameLines, height });
+      // A wrapped name still needs room for all its lines.
+      const minH = Math.max(MIN_ROW_H, nameLines.length * NAME_LINE_H + 6);
+      rrows.push({ kind: "item", item: it, nameLines, height, minH });
     });
-    rrows.push({ kind: "spacer", height: ROW_H });
+    rrows.push({ kind: "spacer", height: ROW_H, minH: MIN_SPACER_H });
   });
 
   const headerBottom = tableTop + HEADER_H;
-  const bodyH = rrows.reduce((sum, r) => sum + r.height, 0);
-  const tableBottom = headerBottom + bodyH;
-  const height = Math.round(tableBottom + 44);
 
-  // background
-  parts.push(`<rect x="0" y="0" width="${W}" height="${height}" fill="#ffffff"/>`);
+  // --- squeeze to one A4 page when the menu runs long ---
+  // Rows give up height in proportion to the slack they have above their own
+  // floor, so blank separators collapse before product rows lose legibility.
+  const availableBody = A4_H - BOTTOM_M - headerBottom;
+  let naturalBody = rrows.reduce((sum, r) => sum + r.height, 0);
+  if (naturalBody > availableBody) {
+    const slack = rrows.reduce((s, r) => s + (r.height - r.minH), 0);
+    if (slack > 0) {
+      const factor = Math.min(1, (naturalBody - availableBody) / slack);
+      for (const r of rrows) r.height = Math.round(r.height - (r.height - r.minH) * factor);
+      naturalBody = rrows.reduce((sum, r) => sum + r.height, 0);
+    }
+  }
+
+  const bodyH = naturalBody;
+  const tableBottom = headerBottom + bodyH;
+  // Natural height of the drawn content. Shorter than a page → the canvas is
+  // simply padded to A4 below the table. Longer (a menu so big the row squeeze
+  // above hit its legibility floor) → the whole sheet is scaled down to fit.
+  const contentH = Math.round(tableBottom + BOTTOM_M);
 
   // logo
   if (logo) {
@@ -209,7 +242,20 @@ export function buildMenuSvg(meta: MenuMeta, groups: Group[]): { svg: string; wi
     parts.push(`<line x1="${TABLE_L}" y1="${y}" x2="${TABLE_R}" y2="${y}" stroke="${BORDER}" stroke-width="1"/>`);
   }
 
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${height}" viewBox="0 0 ${W} ${height}">${parts.join("")}</svg>`;
+  // The canvas is ALWAYS exactly one A4 page: the sheet is printed as often as it
+  // is posted, so a fixed A4 aspect means "Print" fills the page every time and
+  // never spills onto a second one.
+  const height = A4_H;
+  const scale = contentH > A4_H ? A4_H / contentH : 1;
+  const body = scale < 1
+    // Uniform shrink, centred horizontally (the content keeps its proportions,
+    // so a very long menu gets slightly narrower side margins rather than clipping).
+    ? `<g transform="translate(${((W - W * scale) / 2).toFixed(2)},0) scale(${scale.toFixed(5)})">${parts.join("")}</g>`
+    : parts.join("");
+
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${height}" viewBox="0 0 ${W} ${height}">` +
+    `<rect x="0" y="0" width="${W}" height="${height}" fill="#ffffff"/>${body}</svg>`;
   return { svg, width: W, height };
 }
 
@@ -259,15 +305,20 @@ export function svgToPng(svg: string, designWidth: number, fonts = resolveMenuFo
   return Buffer.from(resvg.render().asPng());
 }
 
-/** Wrap the PNG into a single A4-width PDF page (image scaled to fit width). */
+/** Wrap the PNG into ONE real A4 portrait page, scaled to fit and centred.
+ *  A true A4 page (not A4-width-by-whatever-height) is what makes "Print" produce
+ *  a single correctly-sized sheet on any printer. The canvas is already built at
+ *  the A4 aspect ratio, so in the normal case it fills the page edge to edge. */
 export async function pngToPdf(png: Buffer): Promise<Buffer> {
   const doc = await PDFDocument.create();
   const img = await doc.embedPng(png);
-  const pageW = 595.28; // A4 width in points
-  const scale = pageW / img.width;
-  const pageH = img.height * scale;
+  const pageW = 595.28;  // A4 width in points
+  const pageH = 841.89;  // A4 height in points
   const page = doc.addPage([pageW, pageH]);
-  page.drawImage(img, { x: 0, y: 0, width: pageW, height: pageH });
+  const scale = Math.min(pageW / img.width, pageH / img.height);
+  const w = img.width * scale;
+  const h = img.height * scale;
+  page.drawImage(img, { x: (pageW - w) / 2, y: (pageH - h) / 2, width: w, height: h });
   return Buffer.from(await doc.save());
 }
 

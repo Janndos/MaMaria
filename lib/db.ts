@@ -327,12 +327,25 @@ export function getMenuByDate(date: string): Menu | undefined {
   return db.prepare("SELECT * FROM menus WHERE date = ?").get(date) as Menu | undefined;
 }
 
+/**
+ * Items of one menu, grouped by category and in the order the admin entered them.
+ *
+ * Sections are ordered by where each category FIRST APPEARS IN THIS MENU, not by
+ * `menu_categories.sort_order` — that column is global and reflects the order in
+ * which categories were ever first created across the whole database, so it put
+ * the printed sheet in an arbitrary order (Salate before Felul întâi, etc.) once
+ * more than one menu existed. Items keep their own `sort_order` inside a section.
+ */
 export function getMenuItems(menuId: number): MenuItem[] {
   return db.prepare(`
     SELECT mi.*, mc.name AS category
     FROM menu_items mi LEFT JOIN menu_categories mc ON mc.id = mi.category_id
     WHERE mi.menu_id = ?
-    ORDER BY COALESCE(mc.sort_order, 999), mi.sort_order, mi.id
+    ORDER BY (
+      SELECT MIN(m2.sort_order) FROM menu_items m2
+      WHERE m2.menu_id = mi.menu_id
+        AND IFNULL(m2.category_id, -1) = IFNULL(mi.category_id, -1)
+    ), mi.sort_order, mi.id
   `).all(menuId) as MenuItem[];
 }
 

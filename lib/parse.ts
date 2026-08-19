@@ -198,6 +198,18 @@ function fmtDate(d: Date): string {
   return `${p(d.getUTCDate())}.${p(d.getUTCMonth() + 1)}.${d.getUTCFullYear()}`;
 }
 
+/** Build the sheet header ("LUNI 17.08.2026") from a stored ISO date — used when
+ *  the menu was built by hand in the admin panel instead of parsed from Excel. */
+export function metaFromISODate(iso: string): MenuMeta {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso ?? "").trim());
+  if (!m) return { weekday: null, date: null, label: "" };
+  const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  if (isNaN(d.getTime())) return { weekday: null, date: null, label: "" };
+  const weekday = WEEKDAY_BY_DOW[d.getUTCDay()] ?? null;
+  const date = fmtDate(d);
+  return { weekday, date, label: [weekday, date].filter(Boolean).join(" ").trim() };
+}
+
 /** Scan the first rows (above the table header) for a weekday word and a date
  *  (Excel serial or DD.MM.YYYY string). Robust to their exact cell position. */
 export function extractMenuMeta(rows: unknown[][]): MenuMeta {
