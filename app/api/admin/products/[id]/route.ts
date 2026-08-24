@@ -15,13 +15,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const existing = getProductById(id);
     if (!existing) return jsonError(404, "Produsul nu a fost găsit.");
 
-    const body = await req.json();
-    // Fields left out of the request keep their current value.
-    const parsed = readProductBody({
-      name: body?.name ?? existing.name,
-      price: body?.price ?? existing.price,
-      grams: body?.grams ?? existing.grams,
-    });
+    // Fields left out of the request keep their stored value; a field sent as ""
+    // is an explicit reset to 0. readProductBody handles that distinction, so an
+    // unparseable number is REJECTED rather than silently keeping the old value.
+    const parsed = readProductBody(await req.json(), existing);
     if (typeof parsed === "string") return jsonError(400, parsed);
 
     const { name, price, grams } = parsed;

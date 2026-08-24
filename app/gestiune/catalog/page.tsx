@@ -2,6 +2,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge, Button, Card, EmptyState, Input, Modal, Spinner } from "@/components/ui";
 import { useToast } from "@/components/providers";
+import { foldNames, rankedFilter } from "@/lib/search";
+import { gramsError, priceError } from "@/lib/products";
 
 type Product = { id: number; name: string; price: number; grams: number };
 /** A row being edited: the saved values plus whatever is currently in the inputs. */
@@ -19,7 +21,14 @@ function toDraft(p: Product): Draft {
   return { name: p.name, price: String(p.price), grams: p.grams > 0 ? String(p.grams) : "" };
 }
 function isDirty(p: Product, d: Draft): boolean {
-  return d.name !== p.name || Number(d.price || 0) !== p.price || Number(d.grams || 0) !== p.grams;
+  const saved = toDraft(p);
+  return d.name !== saved.name || d.price !== saved.price || d.grams !== saved.grams;
+}
+
+/** First validation problem in a draft row, or null when it is publishable. */
+function draftError(d: Draft): string | null {
+  if (!d.name.trim()) return "Denumirea este obligatorie.";
+  return priceError(d.price) ?? gramsError(d.grams);
 }
 
 export default function AdminCatalogPage() {
@@ -32,27 +41,37 @@ export default function AdminCatalogPage() {
   const [confirmDelete, setConfirmDelete] = useState<Product | null>(null);
   const [adding, setAdding] = useState<Draft>({ name: "", price: "", grams: "" });
   const [busyAdd, setBusyAdd] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const load = useCallback(async () => {
-    const res = await fetch("/api/admin/products?limit=5000");
-    const data = await res.json();
-    setProducts(data.products ?? []);
+    try {
+      const res = await fetch("/api/admin/products?limit=5000");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "load failed");
+      setProducts(data.products ?? []);
+      setLoadFailed(false);
+    } catch {
+      // Never leave the screen on a spinner forever.
+      setProducts([]);
+      setLoadFailed(true);
+    }
     setDrafts({});
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  // Filter locally — the whole catalogue is already in memory.
-  const filtered = useMemo(() => {
-    const list = products ?? [];
-    const term = fold(q);
-    if (!term) return list;
-    return list.filter((p) => fold(p.name).includes(term));
-  }, [products, q]);
+  // Filter locally — the whole catalogue is already in memory. Same forgiving
+  // matcher as the menu-builder picker, so a typo finds the product either way.
+  const indexed = useMemo(() => foldNames(products ?? []), [products]);
+  const filtered = useMemo(() => rankedFilter(indexed, q), [indexed, q]);
 
   useEffect(() => { setPage(0); }, [q]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const shown = filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
+  // Deleting the last rows of the last page would otherwise strand the admin on
+  // an empty page with no way back.
+  const safePage = Math.min(page, pageCount - 1);
+  useEffect(() => { if (page !== safePage) setPage(safePage); }, [page, safePage]);
+  const shown = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
   const missingGrams = (products ?? []).filter((p) => !p.grams).length;
 
   function draftOf(p: Product): Draft {
@@ -71,12 +90,16 @@ export default function AdminCatalogPage() {
 
   async function save(p: Product) {
     const d = draftOf(p);
-    if (!d.name.trim()) { toast.push("Denumirea este obligatorie.", "error"); return; }
+    const err = draftError(d);
+    if (err) { toast.push(err, "error"); return; }
     setSaving(p.id);
     try {
+      // Raw strings on the wire: Number("12,5") is NaN, JSON turns NaN into null,
+      // and the server then read that as "field not sent" — silently keeping the
+      // old price while reporting success. The server parses and validates.
       const res = await fetch(`/api/admin/products/${p.id}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: d.name.trim(), price: d.price === "" ? 0 : Number(d.price), grams: d.grams === "" ? 0 : Number(d.grams) }),
+        body: JSON.stringify({ name: d.name.trim(), price: d.price, grams: d.grams }),
       });
       const data = await res.json();
       if (!res.ok) { toast.push(data.error || "Eroare la salvare.", "error"); return; }
@@ -91,16 +114,20 @@ export default function AdminCatalogPage() {
   }
 
   async function add() {
-    if (!adding.name.trim()) { toast.push("Introduceți denumirea produsului.", "error"); return; }
+    const err = draftError(adding);
+    if (err) { toast.push(err, "error"); return; }
     setBusyAdd(true);
     try {
       const res = await fetch("/api/admin/products", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: adding.name.trim(), price: adding.price === "" ? 0 : Number(adding.price), grams: adding.grams === "" ? 0 : Number(adding.grams) }),
+        body: JSON.stringify({ name: adding.name.trim(), price: adding.price, grams: adding.grams }),
       });
       const data = await res.json();
       if (!res.ok) { toast.push(data.error || "Eroare la adăugare.", "error"); return; }
-      setProducts((prev) => [...(prev ?? []), data.product]);
+      // Keep the in-memory list name-sorted like the server returns it, so the
+      // new product appears in its alphabetical place and not at the very end.
+      setProducts((prev) => [...(prev ?? []), data.product]
+        .sort((a, b) => a.name.localeCompare(b.name, "ro")));
       setAdding({ name: "", price: "", grams: "" });
       setQ(data.product.name); // jump straight to the product just created
       toast.push(`„${data.product.name}" a fost adăugat în catalog.`);
@@ -164,10 +191,18 @@ export default function AdminCatalogPage() {
         {products && (
           <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
             <Badge tone="brand">{filtered.length} afișate</Badge>
-            {missingGrams > 0 && <Badge tone="gold">{missingGrams} fără gramaj</Badge>}
+            {missingGrams > 0 && <Badge tone="gold">{missingGrams} fără gramaj (în total)</Badge>}
           </div>
         )}
       </div>
+
+      {loadFailed && (
+        <div className="rounded-card bg-red-50 px-5 py-4">
+          <p className="text-sm font-bold text-red-800">Catalogul nu a putut fi încărcat.</p>
+          <p className="mt-0.5 text-sm text-red-700">Verifică conexiunea și încearcă din nou.</p>
+          <div className="mt-3"><Button small variant="outline" onClick={load}>Reîncarcă</Button></div>
+        </div>
+      )}
 
       {products === null ? (
         <Spinner label="Se încarcă catalogul..." />
@@ -190,24 +225,32 @@ export default function AdminCatalogPage() {
                 {shown.map((p) => {
                   const d = draftOf(p);
                   const dirty = isDirty(p, d);
+                  const gErr = dirty ? gramsError(d.grams) : null;
+                  const pErr = dirty ? priceError(d.price) : null;
+                  const nErr = dirty && !d.name.trim() ? "Denumirea este obligatorie." : null;
+                  const rowErr = nErr ?? pErr ?? gErr;
                   return (
-                    <tr key={p.id} className={dirty ? "bg-amber-50/60" : ""}>
-                      <td className="px-4 py-2">
-                        <Input value={d.name} onChange={(e) => setDraft(p, { name: e.target.value })} className="!py-1.5" />
+                    <tr key={p.id} className={rowErr ? "bg-red-50/60" : dirty ? "bg-amber-50/60" : ""}>
+                      <td className="px-4 py-2 align-top">
+                        <Input value={d.name} onChange={(e) => setDraft(p, { name: e.target.value })}
+                          className={`!py-1.5 ${nErr ? "!border-red-400" : ""}`} />
+                        {rowErr && <p className="mt-1 text-xs font-medium text-red-600">{rowErr}</p>}
                       </td>
-                      <td className="px-4 py-2">
+                      <td className="px-4 py-2 align-top">
                         <Input value={d.grams} inputMode="numeric" placeholder="0"
-                          onChange={(e) => setDraft(p, { grams: e.target.value })} className="!py-1.5" />
+                          onChange={(e) => setDraft(p, { grams: e.target.value })}
+                          className={`!py-1.5 ${gErr ? "!border-red-400" : ""}`} />
                       </td>
-                      <td className="px-4 py-2">
+                      <td className="px-4 py-2 align-top">
                         <Input value={d.price} inputMode="decimal" placeholder="0"
-                          onChange={(e) => setDraft(p, { price: e.target.value })} className="!py-1.5" />
+                          onChange={(e) => setDraft(p, { price: e.target.value })}
+                          className={`!py-1.5 ${pErr ? "!border-red-400" : ""}`} />
                       </td>
-                      <td className="px-4 py-2">
+                      <td className="px-4 py-2 align-top">
                         <div className="flex flex-wrap justify-end gap-2">
                           {dirty && (
                             <>
-                              <Button small onClick={() => save(p)} disabled={saving === p.id}>
+                              <Button small onClick={() => save(p)} disabled={saving === p.id || !!rowErr}>
                                 {saving === p.id ? "Se salvează…" : "Salvează"}
                               </Button>
                               <Button small variant="ghost" onClick={() => revert(p)}>Renunță</Button>
@@ -231,13 +274,13 @@ export default function AdminCatalogPage() {
           {pageCount > 1 && (
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm text-slate-600">
-                Pagina {page + 1} din {pageCount} · produsele {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)}
+                Pagina {safePage + 1} din {pageCount} · produsele {safePage * PAGE_SIZE + 1}–{Math.min((safePage + 1) * PAGE_SIZE, filtered.length)}
               </p>
               <div className="flex gap-2">
-                <Button small variant="outline" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>
+                <Button small variant="outline" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={safePage === 0}>
                   ← Înapoi
                 </Button>
-                <Button small variant="outline" onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))} disabled={page >= pageCount - 1}>
+                <Button small variant="outline" onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))} disabled={safePage >= pageCount - 1}>
                   Înainte →
                 </Button>
               </div>

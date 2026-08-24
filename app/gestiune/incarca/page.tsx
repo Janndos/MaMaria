@@ -1,12 +1,17 @@
 "use client";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Badge, Button, Card, Field, Input, Spinner } from "@/components/ui";
 import { useToast } from "@/components/providers";
 import { CatalogPicker, CatalogProduct } from "./catalog-picker";
+import { CategorySelect } from "./category-select";
 
 type Row = {
+  /** Stable identity for React. Keying rows by array index let a row's local
+   *  component state (the category picker's "custom" mode, focus) jump to a
+   *  different row when one above it was deleted. */
+  uid: number;
   category: string; name: string; grams: string; priceMdl: string; warnings: string[];
   /** Added from the price list, which carries no category/gram weight — those two
    *  fields must be completed by hand before the menu can be published. */
@@ -14,11 +19,18 @@ type Row = {
 };
 
 function todayISO() { return new Date().toISOString().slice(0, 10); }
-const emptyRow = (): Row => ({ category: "", name: "", grams: "", priceMdl: "", warnings: [] });
 
-/** A catalogue row still missing what the catalogue cannot supply. */
+let rowSeq = 0;
+const nextUid = () => ++rowSeq;
+const emptyRow = (): Row => ({ uid: nextUid(), category: "", name: "", grams: "", priceMdl: "", warnings: [] });
+
+/** A catalogue row still missing something before it can be published. The
+ *  category is never in the catalogue; the gramaj is there only once someone
+ *  fills it in; and a handful of catalogue entries (dough, sauces) are priced 0,
+ *  which is not a valid menu price. */
 function needsCompletion(r: Row) {
-  return !!r.fromCatalog && (!r.category.trim() || !(Number(r.grams) > 0));
+  if (!r.fromCatalog) return false;
+  return !r.category.trim() || !(Number(r.grams) > 0) || !(Number(r.priceMdl) > 0);
 }
 
 export default function AdminUploadPage() {
@@ -33,6 +45,13 @@ export default function AdminUploadPage() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const addedFromCatalog = useRef(0);
 
+  /** Every category already used in the table — offered in each row's dropdown so
+   *  a hand-written section only has to be typed once. */
+  const usedCategories = useMemo(
+    () => Array.from(new Set((rows ?? []).map((r) => r.category.trim()).filter(Boolean))),
+    [rows],
+  );
+
   async function parseFile() {
     const file = fileRef.current?.files?.[0];
     if (!file) { toast.push("Alegeți un fișier .xlsx sau .csv.", "error"); return; }
@@ -46,6 +65,7 @@ export default function AdminUploadPage() {
     if (!res.ok) { setErrors([data.error]); return; }
     setErrors(data.errors ?? []);
     setRows((data.items ?? []).map((it: any) => ({
+      uid: nextUid(),
       category: it.category, name: it.name,
       grams: it.grams === null ? "" : String(it.grams),
       priceMdl: it.priceMdl === null ? "" : String(it.priceMdl),
@@ -81,14 +101,16 @@ export default function AdminUploadPage() {
 
   /** Products chosen from the price list arrive with a name, a price and — when
    *  someone has filled it in on the Catalog screen — a portion weight. The
-   *  category is never stored in the catalogue, so it always starts blank, and a
-   *  gramaj of 0 means "not filled in yet" and also starts blank. A name typed
-   *  into the picker that isn't in the catalogue arrives with price 0. */
-  function addFromCatalog(products: CatalogProduct[]) {
+   *  category is never stored in the catalogue, so it comes from whatever section
+   *  is selected in the picker (blank if none), and a gramaj of 0 means "not
+   *  filled in yet" and starts blank. A name typed into the picker that isn't in
+   *  the catalogue arrives with price 0. */
+  function addFromCatalog(products: CatalogProduct[], category = "") {
     setRows((prev) => [
       ...(prev ?? []),
       ...products.map((p) => ({
-        category: "", name: p.name,
+        uid: nextUid(),
+        category, name: p.name,
         grams: p.grams > 0 ? String(p.grams) : "",
         priceMdl: p.price > 0 ? String(p.price) : "", warnings: [], fromCatalog: true,
       })),
@@ -102,14 +124,14 @@ export default function AdminUploadPage() {
     const n = addedFromCatalog.current;
     addedFromCatalog.current = 0;
     if (n > 0) {
-      toast.push(`${n} produs${n === 1 ? "" : "e"} adăugat${n === 1 ? "" : "e"} — completează categoria și gramajul.`);
+      toast.push(`${n} produs${n === 1 ? "" : "e"} adăugat${n === 1 ? "" : "e"} în tabel.`);
     }
   }
 
   async function publish(asDraft: boolean) {
     if (!rows?.length) { toast.push("Adaugă cel puțin un produs.", "error"); return; }
     if (rows.some(needsCompletion)) {
-      toast.push("Completează categoria și gramajul pentru produsele luate din catalog.", "error");
+      toast.push("Completează câmpurile marcate cu galben pentru produsele din catalog.", "error");
       return;
     }
     for (const r of rows) {
@@ -172,9 +194,10 @@ export default function AdminUploadPage() {
           <span className="font-semibold">catalogul de prețuri</span> al bucătăriei.
         </p>
         <p className="mt-2 rounded-xl bg-brand-50 px-4 py-3 text-sm text-brand-800">
-          Catalogul reține doar <span className="font-semibold">denumirea și prețul</span>. Categoria și
-          gramajul nu sunt stocate acolo, așa că le completezi tu după ce alegi produsul — rândurile
-          neterminate rămân marcate cu galben și nu pot fi publicate.
+          Catalogul reține <span className="font-semibold">denumirea, prețul și gramajul</span> (dacă a
+          fost completat în <span className="font-semibold">Catalog</span>). Categoria nu se stochează
+          acolo, așa că o alegi din listă la fiecare rând — rândurile neterminate rămân marcate cu
+          galben și nu pot fi publicate.
         </p>
         <div className="mt-4 flex flex-wrap gap-3">
           <Button onClick={openPicker}>🔎 Alege din catalogul de prețuri</Button>
@@ -213,17 +236,18 @@ export default function AdminUploadPage() {
                 {rows.map((r, i) => {
                   const todo = needsCompletion(r);
                   return (
-                  <tr key={i} className={r.warnings.length || todo ? "bg-amber-50/60" : ""}>
-                    <td className="px-4 py-2">
-                      <Input value={r.category} onChange={(e) => update(i, { category: e.target.value })}
-                        placeholder="Categorie" className={`!py-1.5 ${todo && !r.category.trim() ? "!border-amber-400" : ""}`} />
+                  <tr key={r.uid} className={r.warnings.length || todo ? "bg-amber-50/60" : ""}>
+                    <td className="px-4 py-2 align-top w-52">
+                      <CategorySelect value={r.category} used={usedCategories}
+                        invalid={todo && !r.category.trim()}
+                        onChange={(v) => update(i, { category: v })} />
                     </td>
                     <td className="px-4 py-2">
                       <Input value={r.name} onChange={(e) => update(i, { name: e.target.value })} placeholder="Denumire produs" className="!py-1.5" />
                       {r.warnings.length > 0 && <span className="mt-1 inline-block"><Badge tone="gold">{r.warnings.join(", ")}</Badge></span>}
                       {todo && (
                         <span className="mt-1 inline-block">
-                          <Badge tone="gold">din catalog — completează categoria și gramajul</Badge>
+                          <Badge tone="gold">din catalog — completează câmpurile marcate</Badge>
                         </span>
                       )}
                     </td>
@@ -231,7 +255,10 @@ export default function AdminUploadPage() {
                       <Input value={r.grams} inputMode="numeric" onChange={(e) => update(i, { grams: e.target.value })}
                         placeholder="g" className={`!py-1.5 ${todo && !(Number(r.grams) > 0) ? "!border-amber-400" : ""}`} />
                     </td>
-                    <td className="px-4 py-2 w-24"><Input value={r.priceMdl} inputMode="decimal" onChange={(e) => update(i, { priceMdl: e.target.value })} placeholder="MDL" className="!py-1.5" /></td>
+                    <td className="px-4 py-2 w-24">
+                      <Input value={r.priceMdl} inputMode="decimal" onChange={(e) => update(i, { priceMdl: e.target.value })}
+                        placeholder="MDL" className={`!py-1.5 ${todo && !(Number(r.priceMdl) > 0) ? "!border-amber-400" : ""}`} />
+                    </td>
                     <td className="px-4 py-2 text-right">
                       <button onClick={() => removeRow(i)} className="text-sm font-semibold text-red-600 hover:underline">Elimină</button>
                     </td>
@@ -252,11 +279,11 @@ export default function AdminUploadPage() {
           {rows.some(needsCompletion) && (
             <div className="rounded-card bg-amber-50 px-5 py-4">
               <p className="text-sm font-bold text-amber-900">
-                {rows.filter(needsCompletion).length} produs(e) din catalog au nevoie de categorie și gramaj
+                {rows.filter(needsCompletion).length} produs(e) din catalog au câmpuri necompletate
               </p>
               <p className="mt-0.5 text-sm text-amber-800">
-                Catalogul de prețuri nu stochează aceste două câmpuri. Completează-le în rândurile
-                marcate cu galben, apoi publică meniul.
+                Alege categoria și completează gramajul/prețul în rândurile marcate cu galben,
+                apoi publică meniul.
               </p>
             </div>
           )}
@@ -274,7 +301,8 @@ export default function AdminUploadPage() {
         </>
       )}
 
-      <CatalogPicker open={pickerOpen} onClose={closePicker} onAdd={addFromCatalog} />
+      <CatalogPicker open={pickerOpen} onClose={closePicker} onAdd={addFromCatalog}
+        usedCategories={usedCategories} />
     </div>
   );
 }

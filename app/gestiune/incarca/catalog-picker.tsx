@@ -1,38 +1,10 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, fmtMdl, Input, Modal, Spinner } from "@/components/ui";
+import { fold, rank } from "@/lib/search";
+import { CategorySelect } from "./category-select";
 
 export type CatalogProduct = { id: number; name: string; price: number; grams: number };
-
-/** Strip diacritics and case so "Mămăligă" is found by typing "mamaliga". */
-function fold(s: string): string {
-  // NFD splits a letter from its accent, and the range below drops the accents.
-  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-}
-
-/** True when every character of `q` appears in `s` in order — forgiving enough to
- *  survive a dropped letter or two ("ciocata" still finds "ciocolata"). */
-function isSubsequence(q: string, s: string): boolean {
-  let i = 0;
-  for (let j = 0; j < s.length && i < q.length; j++) if (s[j] === q[i]) i++;
-  return i === q.length;
-}
-
-/**
- * Rank a product against the query. Lower is better, -1 means no match at all:
- *   0 name starts with what was typed
- *   1 the typed text appears somewhere in the name
- *   2 every typed word appears, in any order ("chec ciocolata")
- *   3 the letters appear in order, allowing typos ("chec de ciocata")
- */
-function rank(folded: string, q: string, tokens: string[], squashedQ: string): number {
-  if (!q) return 0;
-  if (folded.startsWith(q)) return 0;
-  if (folded.includes(q)) return 1;
-  if (tokens.length > 1 && tokens.every((t) => folded.includes(t))) return 2;
-  if (squashedQ.length >= 3 && isSubsequence(squashedQ, folded.replace(/\s+/g, ""))) return 3;
-  return -1;
-}
 
 /**
  * Search-and-pick dialog over the product price list (`products`).
@@ -42,23 +14,32 @@ function rank(folded: string, q: string, tokens: string[], squashedQ: string): n
  * it to the menu table straight away and leaves the dialog open for the next pick.
  *
  * The catalogue stores a name, a price and (once someone fills it in on the
- * Catalog screen) a portion weight. It never stores a category, so a product added
- * from here always lands in the table with the category blank; the gramaj is
+ * Catalog screen) a portion weight. It never stores a category, so the section is
+ * chosen here and applied to everything added in this session; the gramaj is
  * pre-filled when the catalogue knows it and left blank when it is still 0.
  */
 export function CatalogPicker({
-  open, onClose, onAdd,
+  open, onClose, onAdd, usedCategories = [],
 }: {
   open: boolean;
   onClose: () => void;
-  /** Called as soon as a product is clicked (and for a typed-in custom name). */
-  onAdd: (products: CatalogProduct[]) => void;
+  /** Called as soon as a product is clicked (and for a typed-in custom name),
+   *  together with the section selected in this dialog ("" when none). */
+  onAdd: (products: CatalogProduct[], category: string) => void;
+  /** Categories already used in the menu table, offered in the dropdown. */
+  usedCategories?: string[];
 }) {
   const [q, setQ] = useState("");
   const [all, setAll] = useState<CatalogProduct[] | null>(null);
   const [failed, setFailed] = useState(false);
   /** How many times each product was added during this session (for the ✓ badge). */
   const [addedCounts, setAddedCounts] = useState<Record<number, number>>({});
+  /** Section applied to everything added from this dialog. Optional — left blank
+   *  the rows land uncategorised and are flagged in the table as before. */
+  const [category, setCategory] = useState("");
+  /** Ids for names typed by hand; negative and strictly decreasing so two custom
+   *  products added in the same millisecond can never collide. */
+  const nextCustomId = useRef(-1);
   const loaded = useRef(false);
 
   // Fetch the entire catalogue once, the first time the dialog is opened.
@@ -77,9 +58,11 @@ export function CatalogPicker({
     })();
   }, [open]);
 
-  // Reset the query and the per-session counters each time it reopens.
+  // Reset query, counters AND the chosen section each time the dialog reopens.
+  // Carrying a stale section over would silently file the next batch under the
+  // previous one — and a row that HAS a category is not flagged for review.
   useEffect(() => {
-    if (open) { setQ(""); setAddedCounts({}); }
+    if (open) { setQ(""); setAddedCounts({}); setCategory(""); }
   }, [open]);
 
   // Pre-fold every name once so filtering stays instant across 600+ rows.
@@ -103,7 +86,7 @@ export function CatalogPicker({
   }, [q, folded, all]);
 
   function add(p: CatalogProduct) {
-    onAdd([p]);
+    onAdd([p], category);
     setAddedCounts((prev) => ({ ...prev, [p.id]: (prev[p.id] ?? 0) + 1 }));
   }
 
@@ -111,7 +94,7 @@ export function CatalogPicker({
   function addTyped() {
     const name = q.trim();
     if (!name) return;
-    onAdd([{ id: -Date.now(), name, price: 0, grams: 0 }]);
+    onAdd([{ id: nextCustomId.current--, name, price: 0, grams: 0 }], category);
     setQ("");
   }
 
@@ -121,11 +104,21 @@ export function CatalogPicker({
     <Modal wide open={open} title="Alege din catalogul de prețuri" onClose={onClose}>
       <p className="text-sm text-slate-600">
         Apasă pe denumire ca s-o adaugi în tabel — poți adăuga oricâte, fereastra rămâne deschisă.
-        Catalogul reține doar <span className="font-semibold">denumirea și prețul</span>; categoria și
-        gramajul le completezi tu după aceea.
       </p>
 
-      <Input autoFocus value={q} onChange={(e) => setQ(e.target.value)} className="mt-3"
+      {/* Choosing the section here saves setting it on every row afterwards. */}
+      <div className="mt-3 rounded-xl bg-brand-50 p-3">
+        <span className="mb-1.5 block text-sm font-semibold text-brand-800">
+          Adaugă în categoria <span className="font-normal text-slate-500">(opțional)</span>
+        </span>
+        <CategorySelect value={category} onChange={setCategory} used={usedCategories} />
+        <p className="mt-1.5 text-xs text-slate-500">
+          Se aplică produselor adăugate de acum înainte. O poți schimba oricând sau lăsa necompletată
+          și o alegi apoi în tabel.
+        </p>
+      </div>
+
+      <Input value={q} onChange={(e) => setQ(e.target.value)} className="mt-3"
         placeholder={all ? `Scrie primele litere… (${all.length} produse)` : "Se încarcă…"} />
 
       <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
