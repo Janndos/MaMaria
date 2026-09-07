@@ -69,7 +69,10 @@ export function gramsError(v: unknown): string | null {
  */
 export function readProductBody(body: unknown, existing?: ProductInput): ProductInput | string {
   const b = (body ?? {}) as Record<string, unknown>;
-  const has = (k: string) => Object.prototype.hasOwnProperty.call(b, k);
+  // A key whose value is `undefined` counts as NOT sent. Building a patch object
+  // like { price: row.to } where the source field is missing would otherwise look
+  // like an explicit blank and reset the value to 0.
+  const has = (k: string) => Object.prototype.hasOwnProperty.call(b, k) && b[k] !== undefined;
 
   const name = has("name") ? String(b.name ?? "").trim() : (existing?.name ?? "");
   if (!name) return "Denumirea este obligatorie.";

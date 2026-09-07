@@ -4,6 +4,7 @@ import { Badge, Button, Card, EmptyState, Input, Modal, Spinner } from "@/compon
 import { useToast } from "@/components/providers";
 import { foldNames, rankedFilter } from "@/lib/search";
 import { gramsError, priceError } from "@/lib/products";
+import { CatalogImportCard } from "./import-card";
 
 type Product = { id: number; name: string; price: number; grams: number };
 /** A row being edited: the saved values plus whatever is currently in the inputs. */
@@ -157,6 +158,8 @@ export default function AdminCatalogPage() {
           completează-l pe rând, iar apoi se preia automat în „Încarcă meniul".
         </p>
       </div>
+
+      <CatalogImportCard onImported={load} />
 
       {/* Add a new product */}
       <Card className="p-5">
